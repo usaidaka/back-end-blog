@@ -1,0 +1,23 @@
+{
+  "development": {
+    "username": "root",
+    "password": "Usaidaka-2",
+    "database": "minpro_be_development",
+    "host": "127.0.0.1",
+    "dialect": "mysql"
+  },
+  "test": {
+    "username": "root",
+    "password": "Usaidaka-2",
+    "database": "minpro_be_test",
+    "host": "127.0.0.1",
+    "dialect": "mysql"
+  },
+  "production": {
+    "username": "root",
+    "password": "Usaidaka-2",
+    "database": "minpro_be_production",
+    "host": "127.0.0.1",
+    "dialect": "mysql"
+  }
+}
