@@ -1,8 +1,11 @@
 const routerBlog = require("express").Router();
 const BlogController = require("../controller/blog");
 
-routerBlog.post("/blog", BlogController.createBlog);
-routerBlog.get("/blog", BlogController.getBlog);
+const upload = require("../middleware/multerBlog");
+
+routerBlog.post("/blog", upload.single("file"), BlogController.createBlog);
+routerBlog.get("/blog", BlogController.getBlogs);
+routerBlog.get("/blog/user", BlogController.getUserBlogs);
 
 routerBlog.post("/blog/like", BlogController.like);
 routerBlog.get("/blog/allCategory", BlogController.allCategory);

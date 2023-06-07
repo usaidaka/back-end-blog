@@ -2,6 +2,7 @@ npx sequelize-cli db:create -> membuat schema / database
 npx sequelize-cli model:generate --name User --attributes firstName:string,lastName:string,email:string -> membuat model/schema
 npx sequelize-cli db:migrate -> membuat table
 npx sequelize-cli db:migrate:undo -> meng undo table yang sudah di migrate
+npx sequelize-cli db:migrate:undo:all --to XXXXXXXXXXXXXX-create-posts.js -> meng undo specific table
 npx sequelize-cli seed:generate --name demo-user -> membuat seeder : tempat menambahkan data data yang kita inginkan
 npx sequelize-cli db:seed:all -> buat merunning seeder
 npx sequelize-cli db:seed:undo -> undo seed terkini

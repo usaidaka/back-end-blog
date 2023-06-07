@@ -1,7 +1,7 @@
 const routerProfile = require("express").Router();
 const ProfileController = require("../controller/profile");
 
-const upload = require("../middleware/multer");
+const upload = require("../middleware/multerProfile");
 
 routerProfile.post(
   "/profile/single-uploaded",

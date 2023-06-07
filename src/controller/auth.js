@@ -55,6 +55,7 @@ const registerUsers = async (req, res) => {
       role,
       username,
       email,
+      imgProfile,
       phone,
       password,
       confirmPassword,
@@ -88,6 +89,7 @@ const registerUsers = async (req, res) => {
       role: !role,
       username: username,
       email: email,
+      imgProfile: imgProfile,
       phone: phone,
       password: hashPassword,
     });
@@ -97,7 +99,12 @@ const registerUsers = async (req, res) => {
       process.env.ACCESS_TOKEN_SECRET
     );
 
-    const data = await User.findOne({ where: { email: email } });
+    const data = await User.findAll({
+      where: { email: email, username: username },
+      attributes: {
+        exclude: ["imgProfile"],
+      },
+    });
 
     res.status(201).json({
       ok: true,
@@ -161,17 +168,18 @@ const login = async (req, res) => {
       });
     }
 
-    const salt = await bcrypt.genSalt();
-    const hashPassword = await bcrypt.hash(req.body.password, salt);
+    const authHeaders = req.headers["authorization"];
+    const token = authHeaders && authHeaders.split(" ")[1];
 
-    const data = await User.create({
-      isVerified: !req.body.isVerified,
-      role: !req.body.role,
-      username: req.body.username,
-      email: req.body.email,
-      phone: req.body.phone,
-      password: hashPassword,
+    const decodeToken = jwt_decode(token);
+
+    const data = await User.findOne({
+      where: {
+        username: decodeToken.username,
+        email: decodeToken.email,
+      },
     });
+    await User.update({ isVerified: true }, { where: { isVerified: false } });
 
     const userId = user[0].id;
     const username = user[0].username;
@@ -185,7 +193,7 @@ const login = async (req, res) => {
     res.json({
       ok: true,
       message: "welcome to your blog",
-      isAccountExist: data,
+      isAccountExist: user,
       accessToken,
     });
   } catch (error) {

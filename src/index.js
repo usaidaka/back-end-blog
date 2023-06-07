@@ -13,7 +13,8 @@ const BlogRouter = require("./routes/blog");
 
 app.use(express.json());
 app.use(logRequest);
-app.use("/assets", express.static("public/images"));
+app.use("/photoProfile", express.static("public/images"));
+app.use("/photoBlogs", express.static("public/blogs"));
 
 app.use("/api", ProfileRouter);
 app.use("/api", AuthRouter);
