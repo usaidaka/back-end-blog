@@ -1,6 +1,7 @@
 const jwt_decode = require("jwt-decode");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const nodemailer = require("nodemailer");
 
 // models
 const { User } = require("../../models");
@@ -168,19 +169,6 @@ const login = async (req, res) => {
       });
     }
 
-    const authHeaders = req.headers["authorization"];
-    const token = authHeaders && authHeaders.split(" ")[1];
-
-    const decodeToken = jwt_decode(token);
-
-    const data = await User.findOne({
-      where: {
-        username: decodeToken.username,
-        email: decodeToken.email,
-      },
-    });
-    await User.update({ isVerified: true }, { where: { isVerified: false } });
-
     const userId = user[0].id;
     const username = user[0].username;
     const email = user[0].email;
@@ -205,26 +193,129 @@ const login = async (req, res) => {
   }
 };
 
-const verify = (req, res) => {
+const verify = async (req, res) => {
+  const authHeaders = req.headers["authorization"];
+  const token = authHeaders && authHeaders.split(" ")[1];
+
+  const decodeToken = jwt_decode(token);
+
+  const data = await User.findOne({
+    where: {
+      username: decodeToken.username,
+      email: decodeToken.email,
+    },
+  });
+
+  if (token) {
+    await data.update({ isVerified: true }, { where: { isVerified: false } });
+  }
+
   res.json({
     ok: true,
     message: "verify success",
+    data,
   });
 };
 
-const forgotPassword = (req, res) => {
-  res.json({
-    ok: true,
-    message: "forgot password",
-  });
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const oldUser = await User.findOne({
+      where: {
+        email: email,
+      },
+    });
+    if (!oldUser) {
+      return res.status(400).json({
+        ok: false,
+        message: "email does not exists",
+      });
+    }
+    const secret = process.env.ACCESS_TOKEN_SECRET + oldUser.password;
+    const token = jwt.sign({ email: oldUser.email, id: oldUser.id }, secret, {
+      expiresIn: "30m",
+    });
+
+    const OTP = Math.random(new Date().getTime() * 543241)
+      .toString()
+      .substring(2, 6);
+
+    const link = `http://localhost:8000/api/auth/reset-password/${oldUser.id}/${token}`;
+
+    const newOTP = { recipient_email: email, OTP };
+    console.log(newOTP);
+    sendEmail(newOTP)
+      .then((response) =>
+        res.status(200).json({ message: response.message, link })
+      )
+      .catch((error) => res.status(500).send(error.message));
+  } catch (error) {
+    console.log(error);
+  }
 };
 
-const resetPassword = (req, res) => {
+const resetPassword = async (req, res) => {
   res.json({
-    ok: true,
     message: "reset password",
   });
 };
+
+// helper
+function sendEmail({ recipient_email, OTP }) {
+  return new Promise((resolve, reject) => {
+    var transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.MY_EMAIL,
+        pass: process.env.MY_PASSWORD,
+      },
+    });
+
+    const mail_configs = {
+      from: process.env.MY_EMAIL,
+      to: recipient_email,
+      subject: "KODING 101 PASSWORD RECOVERY",
+      html: `<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>CodePen - OTP Email Template</title>
+  
+
+</head>
+<body>
+<!-- partial:index.partial.html -->
+<div style="font-family: Helvetica,Arial,sans-serif;min-width:1000px;overflow:auto;line-height:2">
+  <div style="margin:50px auto;width:70%;padding:20px 0">
+    <div style="border-bottom:1px solid #eee">
+      <a href="" style="font-size:1.4em;color: #00466a;text-decoration:none;font-weight:600">Koding 101</a>
+    </div>
+    <p style="font-size:1.1em">Hi,</p>
+    <p>Thank you for choosing Koding 101. Use the following OTP to complete your Password Recovery Procedure. OTP is valid for 5 minutes</p>
+    <h2 style="background: #00466a;margin: 0 auto;width: max-content;padding: 0 10px;color: #fff;border-radius: 4px;">${OTP}</h2>
+    <p style="font-size:0.9em;">Regards,<br />Koding 101</p>
+    <hr style="border:none;border-top:1px solid #eee" />
+    <div style="float:right;padding:8px 0;color:#aaa;font-size:0.8em;line-height:1;font-weight:300">
+      <p>Koding 101 Inc</p>
+      <p>1600 Amphitheatre Parkway</p>
+      <p>California</p>
+    </div>
+  </div>
+</div>
+<!-- partial -->
+  
+</body>
+</html>`,
+    };
+    transporter.sendMail(mail_configs, function (error, info) {
+      if (error) {
+        console.log(error);
+        return reject({ message: `An error has occured` });
+      }
+      return resolve({ message: "Email sent succesfuly" });
+    });
+  });
+}
 
 module.exports = {
   getUser,

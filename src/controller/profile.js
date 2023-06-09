@@ -1,8 +1,10 @@
 const { User } = require("../../models");
+
 const jwt_decode = require("jwt-decode");
 const bcrypt = require("bcrypt");
 
 // bagaimana membuat condition agar password lama (yg berupa hashing) === newPassword (yg di hashing) sementara hashing di newPassword berbeda2
+// bcrypt match
 const changePassword = async (req, res) => {
   try {
     const authHeaders = req.headers["authorization"];
@@ -16,34 +18,35 @@ const changePassword = async (req, res) => {
         email: decodeToken.email,
       },
     });
-    const { currentPassword, newPassword, confirmPassword } = req.body;
+    const { currentPassword, password, confirmPassword } = req.body;
 
-    const salt = await bcrypt.genSalt();
-    const hashCurrentPassword = await bcrypt.hash(currentPassword, salt);
-    const hashNewPassword = await bcrypt.hash(newPassword, salt);
-
-    if (newPassword !== confirmPassword)
+    if (password !== confirmPassword) {
       return res.status(400).json({
         ok: false,
-        message: "password and confirm password have to match",
-      });
-
-    if (data[0].password === hashCurrentPassword) {
-      await User.update(
-        { password: hashNewPassword },
-        { where: { password: data[0].password } }
-      );
-      res.json({
-        ok: true,
-        message: "change password successful. please log in",
-      });
-    } else {
-      res.status(400).json({
-        ok: false,
-        message: "current password not match",
-        data: data[0],
+        message: "new password and confirm password have to match",
       });
     }
+
+    const salt = await bcrypt.genSalt();
+    const hashNewPassword = await bcrypt.hash(password, salt);
+
+    const match = await bcrypt.compare(currentPassword, data[0].password);
+    console.log(match);
+    if (!match) {
+      return res.status(400).json({
+        ok: false,
+        message: "new password and existing password not match",
+      });
+    }
+
+    await User.update(
+      { password: hashNewPassword },
+      { where: { password: data[0].password } }
+    );
+    res.json({
+      ok: true,
+      message: "change password successful. please log in",
+    });
   } catch (error) {
     console.log(error);
     res.status(400).json({
@@ -171,11 +174,35 @@ const changePhone = async (req, res) => {
   }
 };
 
-const singleUpload = (req, res) => {
-  res.json({
-    ok: true,
-    message: "single upload",
-  });
+const singleUpload = async (req, res) => {
+  try {
+    const authHeaders = req.headers["authorization"];
+    const token = authHeaders && authHeaders.split(" ")[1];
+
+    const decodeToken = jwt_decode(token);
+
+    const data = await User.findAll({
+      where: {
+        username: decodeToken.username,
+        email: decodeToken.email,
+      },
+    });
+
+    const photoProfile = req.file.filename;
+
+    await data[0].update(
+      { imgProfile: `/photoProfile/${photoProfile}` },
+      { where: { imgProfile: null } }
+    );
+    res.json({
+      ok: true,
+      message: "single upload",
+      data,
+      photo: `http://localhost:8000/photoProfile/${photoProfile}`,
+    });
+  } catch (error) {
+    console.log(error);
+  }
 };
 
 module.exports = {

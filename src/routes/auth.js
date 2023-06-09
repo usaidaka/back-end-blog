@@ -10,7 +10,7 @@ routerAuth.delete("/auth/:userId", AuthController.deleteUser);
 routerAuth.post("/auth/login", AuthController.login);
 routerAuth.patch("/auth/verify", verifyToken, AuthController.verify);
 
-routerAuth.put("/auth/forgot-password", AuthController.forgotPassword);
-routerAuth.patch("/auth/reset-password", AuthController.resetPassword);
+routerAuth.post("/auth/forgot-password", AuthController.forgotPassword);
+routerAuth.get("/auth/reset-password/:id/:token", AuthController.resetPassword);
 
 module.exports = routerAuth;

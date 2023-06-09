@@ -9,7 +9,9 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
-      Blog.belongsTo(models.User);
+      Blog.belongsTo(models.AllCategory, { foreignKey: "CategoryId" });
+      Blog.belongsTo(models.User, { foreignKey: "UserId" });
+      Blog.hasMany(models.Like, { foreignKey: "BlogId" });
     }
   }
   Blog.init(

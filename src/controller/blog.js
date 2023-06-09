@@ -1,35 +1,54 @@
 const jwt_decode = require("jwt-decode");
-const { AllCategory, Blog, User } = require("../../models");
+const models = require("../../models/index");
+const { AllCategory, Blog, User, Like } = require("../../models");
 
-// bagaimana memasukkan user dan category ke dalam blog
 const getBlogs = async (req, res) => {
   try {
-    const data = await Blog.findAll();
-    const category = await AllCategory.findAll({
-      where: { id: data.map((attr) => Number(attr.CategoryId)) },
-    });
-    const user = await User.findAll({
-      where: {
-        id: data[0].UserId,
-      },
+    const data = await Blog.findAll({
       attributes: {
-        exclude: ["isVerified", "role", "password", "createdAt", "updatedAt"],
+        include: [
+          [
+            models.sequelize.fn("count", models.sequelize.col("likes.UserId")),
+            "total_like",
+          ],
+        ],
       },
+      include: [
+        { model: AllCategory },
+        {
+          model: User,
+          attributes: {
+            exclude: [
+              "createdAt",
+              "updatedAt",
+              "password",
+              "phone",
+              "role",
+              "isVerified",
+            ],
+          },
+        },
+        {
+          model: Like,
+          attributes: [],
+        },
+      ],
+      group: ["Blog.id"],
+      order: [["createdAt", "desc"]],
     });
 
     res.status(200).json({
       ok: true,
       data: data,
-      category,
-      user,
+      // category,
+      // user,
     });
   } catch (error) {
     console.log(error);
-    res.status(400),
-      json({
-        ok: false,
-        message: error.message,
-      });
+    res.status(400).json({
+      ok: false,
+      message: error.message,
+    });
   }
 };
 
@@ -76,13 +95,14 @@ const createBlog = async (req, res) => {
         email: decodeToken.email,
       },
     });
+    const imageURL = req.file.filename;
 
     const result = await Blog.create({
       title: data.title,
       content: data.content,
       UserId: dataUser.id,
       CategoryId: data.CategoryId,
-      imageURL: data.imageURL,
+      imageURL: `/photoBlogs/${imageURL}`,
       country: data.country,
       url: data.url,
       keywords: data.keywords,
@@ -102,13 +122,6 @@ const createBlog = async (req, res) => {
   }
 };
 
-const like = (req, res) => {
-  res.json({
-    ok: true,
-    message: "like",
-  });
-};
-
 const allCategory = async (req, res) => {
   try {
     const allCategories = await AllCategory.findAll();
@@ -124,18 +137,183 @@ const allCategory = async (req, res) => {
     });
   }
 };
-const pagLike = (req, res) => {
-  res.json({
-    ok: true,
-    message: "pagLike",
-  });
+
+const like = async (req, res) => {
+  try {
+    const authHeaders = req.headers["authorization"];
+    const token = authHeaders && authHeaders.split(" ")[1];
+
+    const decodeToken = jwt_decode(token);
+
+    const dataUser = await User.findOne({
+      where: {
+        username: decodeToken.username,
+        email: decodeToken.email,
+      },
+    });
+
+    const { BlogId } = req.body;
+    const UserId = dataUser.id;
+
+    await Like.count({ where: { UserId: UserId, BlogId: BlogId } }).then(
+      (count) => {
+        if (count < 1) {
+          Like.create({
+            UserId: dataUser.id,
+            BlogId: BlogId,
+          });
+          res.status(201).json({
+            ok: true,
+            message: "like blog successful",
+            data: `blog with id ${BlogId} is liked`,
+            dataUser,
+          });
+        } else {
+          res.status(400).json({
+            ok: false,
+            message: "post liked, you can't like the post twice",
+            count,
+          });
+        }
+      }
+    );
+  } catch (error) {
+    console.log(error);
+    res.status(400).json({
+      ok: false,
+      message: "like blog failed",
+    });
+  }
 };
 
-const pagFav = (req, res) => {
-  res.json({
-    ok: true,
-    message: "pagFav",
-  });
+const pagLike = async (req, res) => {
+  try {
+    const authHeaders = req.headers["authorization"];
+    const token = authHeaders && authHeaders.split(" ")[1];
+
+    const decodeToken = jwt_decode(token);
+
+    const dataUser = await User.findAll({
+      where: {
+        username: decodeToken.username,
+        email: decodeToken.email,
+      },
+    });
+
+    const data = await Like.findAll({
+      include: [
+        { model: Blog },
+        {
+          model: User,
+          attributes: {
+            exclude: [
+              "createdAt",
+              "updatedAt",
+              "password",
+              "phone",
+              "role",
+              "isVerified",
+            ],
+          },
+        },
+      ],
+      where: {
+        UserId: dataUser[0].id,
+      },
+    });
+
+    res.status(200).json({
+      ok: true,
+      data: data,
+      dataUser: dataUser[0].id,
+
+      // category,
+      // user,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(400).json({
+      ok: false,
+      message: error.message,
+    });
+  }
+};
+
+const unLike = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Like.destroy({
+      where: {
+        BlogId: id,
+      },
+    });
+    res.status(200).json({
+      ok: true,
+      message: `unlike on Blog Id ${id}`,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(400).json({
+      ok: false,
+      message: error.message,
+    });
+  }
+};
+
+const pagFav = async (req, res) => {
+  try {
+    const data = await Blog.findAll(
+      { limit: 10 },
+      {
+        attributes: {
+          include: [
+            [
+              models.sequelize.fn(
+                "count",
+                models.sequelize.col("likes.UserId")
+              ),
+              "total_like",
+            ],
+          ],
+        },
+        include: [
+          { model: AllCategory },
+          {
+            model: User,
+            attributes: {
+              exclude: [
+                "createdAt",
+                "updatedAt",
+                "password",
+                "phone",
+                "role",
+                "isVerified",
+              ],
+            },
+          },
+          {
+            model: Like,
+            attributes: [],
+          },
+        ],
+        group: ["Blog.id"],
+        order: [["total_like", "desc"]],
+      }
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: data,
+      // category,
+      // user,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(400).json({
+      ok: false,
+      message: error.message,
+    });
+  }
 };
 
 const deleteBlog = async (req, res) => {
@@ -165,4 +343,5 @@ module.exports = {
   pagFav,
   allCategory,
   getUserBlogs,
+  unLike,
 };
