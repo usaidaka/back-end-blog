@@ -1,41 +1,110 @@
 const jwt_decode = require("jwt-decode");
 const models = require("../../models/index");
+const { Op } = require("sequelize");
 const { AllCategory, Blog, User, Like } = require("../../models");
 
 const getBlogs = async (req, res) => {
   try {
-    const data = await Blog.findAll({
-      attributes: {
-        include: [
-          [
-            models.sequelize.fn("count", models.sequelize.col("likes.UserId")),
-            "total_like",
+    const { query } = req;
+    let data;
+    const category = query.category || "";
+    const sorting = query.sort || "desc";
+    const keywords = query.keywords || "";
+    const username = query.username || "";
+    if (query) {
+      data = await Blog.findAll({
+        where: {
+          CategoryId: category,
+          [Op.or]: [
+            { title: { [Op.like]: `%${keywords}%` } },
+            { content: { [Op.like]: `%${keywords}%` } },
           ],
-        ],
-      },
-      include: [
-        { model: AllCategory },
-        {
-          model: User,
-          attributes: {
-            exclude: [
-              "createdAt",
-              "updatedAt",
-              "password",
-              "phone",
-              "role",
-              "isVerified",
+        },
+        attributes: {
+          include: [
+            [
+              models.sequelize.fn(
+                "count",
+                models.sequelize.col("likes.UserId")
+              ),
+              "total_like",
             ],
+          ],
+        },
+        include: [
+          { model: AllCategory },
+          {
+            model: User,
+            where: {
+              username: { [Op.like]: `%${username}%` },
+            },
+            attributes: {
+              exclude: [
+                "createdAt",
+                "updatedAt",
+                "password",
+                "phone",
+                "role",
+                "isVerified",
+              ],
+            },
           },
+          {
+            model: Like,
+            attributes: [],
+          },
+        ],
+        group: ["Blog.id"],
+        order: [["createdAt", sorting]],
+      });
+    }
+
+    if (!query.category) {
+      data = await Blog.findAll({
+        where: {
+          [Op.or]: [
+            { title: { [Op.like]: `%${keywords}%` } },
+            { content: { [Op.like]: `%${keywords}%` } },
+          ],
         },
-        {
-          model: Like,
-          attributes: [],
+        attributes: {
+          include: [
+            [
+              models.sequelize.fn(
+                "count",
+                models.sequelize.col("likes.UserId")
+              ),
+              "total_like",
+            ],
+          ],
         },
-      ],
-      group: ["Blog.id"],
-      order: [["createdAt", "desc"]],
-    });
+        include: [
+          { model: AllCategory },
+          {
+            model: User,
+            where: {
+              username: { [Op.like]: `%${username}%` },
+            },
+            attributes: {
+              exclude: [
+                "createdAt",
+                "updatedAt",
+                "password",
+                "phone",
+                "role",
+                "isVerified",
+              ],
+            },
+          },
+          {
+            model: Like,
+            attributes: [],
+          },
+        ],
+        group: ["Blog.id"],
+        order: [["createdAt", sorting]],
+      });
+    }
 
     res.status(200).json({
       ok: true,
