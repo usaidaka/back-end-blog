@@ -104,7 +104,7 @@ const registerUsers = async (req, res) => {
     const data = await User.findAll({
       where: { email: email, username: username },
       attributes: {
-        exclude: ["imgProfile"],
+        exclude: ["imgProfile", "token"],
       },
     });
 
