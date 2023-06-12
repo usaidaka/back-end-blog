@@ -39,6 +39,10 @@ module.exports = (sequelize, DataTypes) => {
         unique: true,
       },
       password: DataTypes.STRING,
+      token: {
+        type: DataTypes.STRING,
+        unique: true,
+      },
     },
     {
       sequelize,

@@ -1,7 +1,7 @@
 const jwt_decode = require("jwt-decode");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-const nodemailer = require("nodemailer");
+const Mailer = require("./mailer");
 
 // models
 const { User } = require("../../models");
@@ -107,6 +107,11 @@ const registerUsers = async (req, res) => {
       },
     });
 
+    const link = `http://localhost:8000/api/auth/verify/${accessToken}`;
+
+    const mailing = { recipient_email: email, link };
+    Mailer.sendEmailRegister(mailing);
+
     res.status(201).json({
       ok: true,
       message: "congrats! register successful",
@@ -194,27 +199,63 @@ const login = async (req, res) => {
 };
 
 const verify = async (req, res) => {
-  const authHeaders = req.headers["authorization"];
-  const token = authHeaders && authHeaders.split(" ")[1];
+  try {
+    const authHeaders = req.headers["authorization"];
+    const token = authHeaders && authHeaders.split(" ")[1];
 
-  const decodeToken = jwt_decode(token);
+    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
-  const data = await User.findOne({
-    where: {
-      username: decodeToken.username,
-      email: decodeToken.email,
-    },
-  });
+    const data = await User.findOne({
+      where: {
+        username: decodedToken.username,
+        email: decodedToken.email,
+      },
+    });
+    console.log(token);
 
-  if (token) {
-    await data.update({ isVerified: true }, { where: { isVerified: false } });
+    if (token === data.token && !data.isVerified) {
+      await data.update({ isVerified: true });
+    }
+    res.json({
+      ok: true,
+      message: "verify success",
+      data,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(400).json({
+      ok: false,
+      message: error.message,
+    });
   }
+};
 
-  res.json({
-    ok: true,
-    message: "verify success",
-    data,
-  });
+const verifyUser = async (req, res) => {
+  const { tokenId } = req.params;
+  try {
+    const decodedToken = jwt.verify(tokenId, process.env.ACCESS_TOKEN_SECRET);
+
+    const data = await User.findOne({
+      where: {
+        username: decodedToken.username,
+        email: decodedToken.email,
+      },
+    });
+
+    if (tokenId === data.token && !data.isVerified) {
+      res.json({
+        ok: true,
+        message: "verify success",
+        data,
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    res.status(400).json({
+      ok: false,
+      message: error.message,
+    });
+  }
 };
 
 const forgotPassword = async (req, res) => {
@@ -243,8 +284,7 @@ const forgotPassword = async (req, res) => {
     const link = `http://localhost:8000/api/auth/reset-password/${oldUser.id}/${token}`;
 
     const newOTP = { recipient_email: email, OTP };
-    console.log(newOTP);
-    sendEmail(newOTP)
+    Mailer.sendEmailForgotPassword(newOTP)
       .then((response) =>
         res.status(200).json({ message: response.message, link })
       )
@@ -261,58 +301,6 @@ const resetPassword = async (req, res) => {
 };
 
 // helper
-function sendEmail({ recipient_email, OTP }) {
-  return new Promise((resolve, reject) => {
-    var transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.MY_EMAIL,
-        pass: process.env.MY_PASSWORD,
-      },
-    });
-
-    const mail_configs = {
-      from: process.env.MY_EMAIL,
-      to: recipient_email,
-      subject: "RECOVERY YOUR PASSWORD BY USING THIS OTP",
-      html: `
-<!DOCTYPE html>
-<html lang="en" >
-<head>
-  <meta charset="UTF-8">
-  <title>FORGOT PASSWORD</title>
-</head>
-<body>
-<div style="font-family: Helvetica,Arial,sans-serif;min-width:1000px;overflow:auto;line-height:2">
-  <div style="margin:50px auto;width:70%;padding:20px 0">
-    <div style="border-bottom:1px solid #eee">
-      <a href="" style="font-size:1.4em;color: #00466a;text-decoration:none;font-weight:600">Purwadhika</a>
-    </div>
-    <p style="font-size:1.1em">Hi,</p>
-    <p>.Use the following OTP to complete your Password Recovery Procedure. <span style="color:red">DO NOT LET PEOPLE KNOW YOUR OTP CODE !</span>. OTP is valid for 5 minutes</p>
-    <h2 style="background: #00466a;margin: 0 auto;width: max-content;padding: 0 10px;color: #fff;border-radius: 4px;">${OTP}</h2>
-    <p style="font-size:0.9em;">Regards,<br />JCWD PURWADHIKA JAKARTA</p>
-    <hr style="border:none;border-top:1px solid #eee" />
-    <div style="float:right;padding:8px 0;color:#aaa;font-size:0.8em;line-height:1;font-weight:300">
-      <p>Purwadhika</p>
-      <p>MSIG TOWER</p>
-      <p>JC Web Development</p>
-    </div>
-  </div>
-</div>
-  
-</body>
-</html>`,
-    };
-    transporter.sendMail(mail_configs, function (error, info) {
-      if (error) {
-        console.log(error);
-        return reject({ message: `An error has occured` });
-      }
-      return resolve({ message: "Email sent succesfuly" });
-    });
-  });
-}
 
 module.exports = {
   getUser,
@@ -323,4 +311,5 @@ module.exports = {
   resetPassword,
   forgotPassword,
   getAllUsers,
+  verifyUser,
 };
