@@ -4,7 +4,7 @@ const bcrypt = require("bcrypt");
 const Mailer = require("./mailer");
 
 // models
-const { User } = require("../../models");
+const { User, ResetPassword } = require("../../models");
 
 const getAllUsers = async (req, res) => {
   try {
@@ -29,9 +29,9 @@ const getUser = async (req, res) => {
   try {
     const authHeaders = req.headers["authorization"];
     const token = authHeaders && authHeaders.split(" ")[1];
-    console.log("token", token);
+    // console.log("token", token);
     const decodeToken = jwt_decode(token);
-    console.log("decode token", decodeToken.username);
+    // console.log("decode token", decodeToken.username);
 
     const data = await User.findOne({
       where: {
@@ -85,6 +85,11 @@ const registerUsers = async (req, res) => {
       });
     }
 
+    const accessToken = jwt.sign(
+      { username, email, phone },
+      process.env.ACCESS_TOKEN_SECRET
+    );
+
     await User.create({
       isVerified: isVerified,
       role: !role,
@@ -93,12 +98,8 @@ const registerUsers = async (req, res) => {
       imgProfile: imgProfile,
       phone: phone,
       password: hashPassword,
+      token: accessToken,
     });
-
-    const accessToken = jwt.sign(
-      { username, email, phone },
-      process.env.ACCESS_TOKEN_SECRET
-    );
 
     const data = await User.findAll({
       where: { email: email, username: username },
@@ -158,6 +159,9 @@ const login = async (req, res) => {
         username: req.body.username,
         email: req.body.email,
       },
+      attributes: {
+        exclude: ["token"],
+      },
     });
 
     const match = await bcrypt.compare(req.body.password, user[0].password);
@@ -200,6 +204,7 @@ const login = async (req, res) => {
 
 const verify = async (req, res) => {
   try {
+    const { tokenId } = req.params;
     const authHeaders = req.headers["authorization"];
     const token = authHeaders && authHeaders.split(" ")[1];
 
@@ -211,9 +216,9 @@ const verify = async (req, res) => {
         email: decodedToken.email,
       },
     });
-    console.log(token);
+    // console.log(token);
 
-    if (token === data.token && !data.isVerified) {
+    if (data.token === tokenId && !data.isVerified) {
       await data.update({ isVerified: true });
     }
     res.json({
@@ -274,33 +279,112 @@ const forgotPassword = async (req, res) => {
     }
     const secret = process.env.ACCESS_TOKEN_SECRET + oldUser.password;
     const token = jwt.sign({ email: oldUser.email, id: oldUser.id }, secret, {
-      expiresIn: "30m",
+      expiresIn: "5m",
     });
 
     const OTP = Math.random(new Date().getTime() * 543241)
       .toString()
-      .substring(2, 6);
+      .substring(2, 8);
 
     const link = `http://localhost:8000/api/auth/reset-password/${oldUser.id}/${token}`;
 
-    const newOTP = { recipient_email: email, OTP };
+    await ResetPassword.create({
+      UserId: oldUser.id,
+      otp: OTP,
+    });
+
+    const newOTP = { recipient_email: email, OTP, link };
     Mailer.sendEmailForgotPassword(newOTP)
       .then((response) =>
-        res.status(200).json({ message: response.message, link })
+        res.status(200).json({
+          message: `${response.message}, OTP will be expired on 5 minutes`,
+        })
       )
       .catch((error) => res.status(500).send(error.message));
   } catch (error) {
     console.log(error);
+    res.status(400).json({
+      ok: false,
+      message: "bad request",
+    });
   }
 };
 
 const resetPassword = async (req, res) => {
-  res.json({
-    message: "reset password",
-  });
-};
+  try {
+    const { otp, newPassword, confirmPassword } = req.body;
+    const { id, token } = req.params;
+    // console.log("TOKEN", token);
+    // console.log("DATA", data);
+    const oldUser = await User.findOne({
+      where: {
+        id: id,
+      },
+    });
 
-// helper
+    const secret = process.env.ACCESS_TOKEN_SECRET + oldUser.password;
+    const decodedToken = jwt.verify(token, secret, { expiresIn: "5m" });
+
+    if (!oldUser) {
+      return res.status(404).json({
+        ok: false,
+        message: "User not found",
+      });
+    }
+
+    const otpData = await ResetPassword.findOne({
+      where: {
+        UserId: decodedToken.id,
+      },
+      order: [["id", "DESC"]],
+      limit: 1,
+    });
+
+    if (!otpData) {
+      return res.status(404).json({
+        ok: false,
+        message: "OTP data not found",
+      });
+    }
+    console.log("otpData", otpData.otp);
+    if (newPassword !== confirmPassword)
+      return res.status(400).json({
+        ok: false,
+        message: "password and confirm password have to match",
+      });
+    const salt = await bcrypt.genSalt(10);
+    const hashPassword = await bcrypt.hash(newPassword, salt);
+    console.log(hashPassword);
+
+    if (otp === otpData.otp) {
+      await User.update(
+        {
+          password: hashPassword,
+        },
+        {
+          where: {
+            email: decodedToken.email,
+            id: decodedToken.id,
+            password: oldUser.password,
+          },
+        }
+      );
+      res.json({
+        message: "reset password successfully, please log in",
+      });
+    } else {
+      res.json({
+        message: "reset password failed",
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    res.status(400).json({
+      ok: false,
+      message: "input your new password",
+    });
+  }
+};
 
 module.exports = {
   getUser,

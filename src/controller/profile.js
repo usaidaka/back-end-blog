@@ -186,6 +186,9 @@ const singleUpload = async (req, res) => {
         username: decodeToken.username,
         email: decodeToken.email,
       },
+      attributes: {
+        exclude: ["token"],
+      },
     });
 
     const photoProfile = req.file.filename;
@@ -198,7 +201,6 @@ const singleUpload = async (req, res) => {
       ok: true,
       message: "single upload",
       data,
-      photo: `http://localhost:8000/photoProfile/${photoProfile}`,
     });
   } catch (error) {
     console.log(error);

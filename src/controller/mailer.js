@@ -1,7 +1,7 @@
 const nodemailer = require("nodemailer");
 
 module.exports = {
-  sendEmailForgotPassword({ recipient_email, OTP }) {
+  sendEmailForgotPassword({ recipient_email, OTP, link }) {
     return new Promise((resolve, reject) => {
       var transporter = nodemailer.createTransport({
         service: "gmail",
@@ -31,6 +31,7 @@ module.exports = {
     <p style="font-size:1.1em">Hi,</p>
     <p>Use the following OTP to complete your Password Recovery Procedure. <span style="color:red">DO NOT LET PEOPLE KNOW YOUR OTP CODE !</span>. OTP is valid for 5 minutes</p>
     <h2 style="background: #02cc35;margin: 0 auto;width: max-content;padding: 0 10px;color: #fff;border-radius: 4px;">${OTP}</h2>
+    <a href=${link} style="background: #02cc35;margin: 0 auto;width: max-content;padding: 5px 10px;color: #fff;border-radius: 4px;text-decoration:none;">reset your password</a>
     <p style="font-size:0.9em;">Regards,<br />JCWD PURWADHIKA JAKARTA</p>
     <hr style="border:none;border-top:1px solid #eee" />
     <div style="float:right;padding:8px 0;color:#aaa;font-size:0.8em;line-height:1;font-weight:300">
