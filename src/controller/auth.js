@@ -1,6 +1,7 @@
 const jwt_decode = require("jwt-decode");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const { Op } = require("sequelize");
 const Mailer = require("./mailer");
 
 // models
@@ -38,14 +39,26 @@ const getUser = async (req, res) => {
         username: decodeToken.username,
         email: decodeToken.email,
       },
+      attributes: {
+        exclude: ["token"],
+      },
     });
     const result = {
       ok: true,
       data: data,
     };
-    res.json(result);
+    if (data) {
+      return res.json(result);
+    } else {
+      return res.status(500).json({
+        message: "something wrong happen on server",
+      });
+    }
   } catch (error) {
     console.log(error);
+    res.status(400).json({
+      message: error.message,
+    });
   }
 };
 
@@ -101,7 +114,7 @@ const registerUsers = async (req, res) => {
       token: accessToken,
     });
 
-    const data = await User.findAll({
+    const data = await User.findOne({
       where: { email: email, username: username },
       attributes: {
         exclude: ["imgProfile", "token"],
@@ -121,9 +134,9 @@ const registerUsers = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
-    res.status(400).json({
+    res.status(500).json({
       ok: false,
-      message: "Bad Request",
+      message: "something bad happen",
     });
   }
 };
@@ -154,33 +167,31 @@ const deleteUser = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    const user = await User.findAll({
+    const { user_identification, password } = req.body;
+    const user = await User.findOne({
       where: {
-        username: req.body.username,
-        email: req.body.email,
+        [Op.or]: [
+          { email: user_identification },
+          { phone: user_identification },
+          { username: user_identification },
+        ],
       },
       attributes: {
         exclude: ["token"],
       },
     });
 
-    const match = await bcrypt.compare(req.body.password, user[0].password);
+    const match = await bcrypt.compare(password, user.password);
     if (!match) {
       return res.status(400).json({
         ok: false,
         message: "wrong password",
       });
     }
-    if (req.body.phone !== user[0].phone) {
-      return res.status(400).json({
-        ok: false,
-        message: "wrong phonenumber",
-      });
-    }
 
-    const userId = user[0].id;
-    const username = user[0].username;
-    const email = user[0].email;
+    const userId = user.id;
+    const username = user.username;
+    const email = user.email;
 
     const accessToken = jwt.sign(
       { userId, username, email },
@@ -202,7 +213,7 @@ const login = async (req, res) => {
   }
 };
 
-const verify = async (req, res) => {
+const verify = async (req, res, next) => {
   try {
     const { tokenId } = req.params;
     const authHeaders = req.headers["authorization"];
@@ -233,6 +244,7 @@ const verify = async (req, res) => {
       message: error.message,
     });
   }
+  next();
 };
 
 const verifyUser = async (req, res) => {
@@ -248,6 +260,7 @@ const verifyUser = async (req, res) => {
     });
 
     if (tokenId === data.token && !data.isVerified) {
+      await data.update({ isVerified: true }, { where: { isVerified: false } });
       res.json({
         ok: true,
         message: "verify success",
@@ -263,7 +276,7 @@ const verifyUser = async (req, res) => {
   }
 };
 
-const forgotPassword = async (req, res) => {
+const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
     const oldUser = await User.findOne({
@@ -271,6 +284,7 @@ const forgotPassword = async (req, res) => {
         email: email,
       },
     });
+
     if (!oldUser) {
       return res.status(400).json({
         ok: false,
@@ -310,7 +324,7 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-const resetPassword = async (req, res) => {
+const getResetPassword = async (req, res, next) => {
   try {
     const { otp, newPassword, confirmPassword } = req.body;
     const { id, token } = req.params;
@@ -357,7 +371,84 @@ const resetPassword = async (req, res) => {
     console.log(hashPassword);
 
     if (otp === otpData.otp) {
-      await User.update(
+      await oldUser.update(
+        {
+          password: hashPassword,
+        },
+        {
+          where: {
+            email: decodedToken.email,
+            id: decodedToken.id,
+            password: oldUser.password,
+          },
+        }
+      );
+      res.json({
+        message: "reset password successfully, please log in",
+      });
+    } else {
+      return res.json({
+        message: "reset password failed",
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    return res.status(400).json({
+      ok: false,
+      message: "input your new password",
+    });
+  }
+  next();
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const { otp, newPassword, confirmPassword } = req.body;
+    const { id, token } = req.params;
+    // console.log("TOKEN", token);
+    // console.log("DATA", data);
+    const oldUser = await User.findOne({
+      where: {
+        id: id,
+      },
+    });
+
+    const secret = process.env.ACCESS_TOKEN_SECRET + oldUser.password;
+    const decodedToken = jwt.verify(token, secret, { expiresIn: "5m" });
+
+    if (!oldUser) {
+      return res.status(404).json({
+        ok: false,
+        message: "User not found",
+      });
+    }
+
+    const otpData = await ResetPassword.findOne({
+      where: {
+        UserId: decodedToken.id,
+      },
+      order: [["id", "DESC"]],
+      limit: 1,
+    });
+
+    if (!otpData) {
+      return res.status(404).json({
+        ok: false,
+        message: "OTP data not found",
+      });
+    }
+    console.log("otpData", otpData.otp);
+    if (newPassword !== confirmPassword)
+      return res.status(400).json({
+        ok: false,
+        message: "password and confirm password have to match",
+      });
+    const salt = await bcrypt.genSalt(10);
+    const hashPassword = await bcrypt.hash(newPassword, salt);
+    console.log(hashPassword);
+
+    if (otp === otpData.otp) {
+      await oldUser.update(
         {
           password: hashPassword,
         },
@@ -384,6 +475,7 @@ const resetPassword = async (req, res) => {
       message: "input your new password",
     });
   }
+  next();
 };
 
 module.exports = {
@@ -396,4 +488,5 @@ module.exports = {
   forgotPassword,
   getAllUsers,
   verifyUser,
+  getResetPassword,
 };

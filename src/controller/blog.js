@@ -176,7 +176,7 @@ const getUserBlogs = async (req, res) => {
     console.log(error);
     res.status(400).json({
       ok: false,
-      message: error,
+      message: error.message,
     });
   }
 };

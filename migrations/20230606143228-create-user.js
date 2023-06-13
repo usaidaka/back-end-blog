@@ -3,12 +3,8 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     const currentDate = new Date();
-    const expiredDate = new Date(currentDate.getTime() + 30 * 60000)
-      .toISOString()
-      .replace("T", " ")
-      .replace(".000Z", "")
-      .replace("Z", "")
-      .slice(0, -4);
+    const expiredDate = new Date(currentDate.getTime() + 30 * 60000);
+
     await queryInterface.createTable("Users", {
       id: {
         allowNull: false,
@@ -26,21 +22,25 @@ module.exports = {
       },
       username: {
         type: Sequelize.STRING,
+        unique: true,
       },
       email: {
         type: Sequelize.STRING,
+        unique: true,
       },
       imgProfile: {
         type: Sequelize.STRING,
       },
       phone: {
         type: Sequelize.STRING,
+        unique: true,
       },
       password: {
         type: Sequelize.STRING,
       },
       token: {
         type: Sequelize.STRING,
+        unique: true,
       },
       tokenExpired: {
         allowNull: false,
