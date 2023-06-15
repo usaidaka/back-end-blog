@@ -3,6 +3,8 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const { Op } = require("sequelize");
 const Mailer = require("./mailer");
+const crypto =
+  require("crypto").randomBytes(16).toString("hex") + Math.random();
 
 // models
 const { User, ResetPassword } = require("../../models");
@@ -63,6 +65,7 @@ const getUser = async (req, res) => {
 };
 
 const registerUsers = async (req, res) => {
+  console.log(crypto);
   try {
     const {
       isVerified,
@@ -98,10 +101,13 @@ const registerUsers = async (req, res) => {
       });
     }
 
-    const accessToken = jwt.sign(
-      { username, email, phone },
-      process.env.ACCESS_TOKEN_SECRET
-    );
+    // nanti ganti ini dengan token acak
+    const accessVerify = crypto;
+
+    // const accessToken = jwt.sign(
+    //   { username, email, phone },
+    //   process.env.ACCESS_TOKEN_SECRET
+    // );
 
     await User.create({
       isVerified: isVerified,
@@ -111,7 +117,7 @@ const registerUsers = async (req, res) => {
       imgProfile: imgProfile,
       phone: phone,
       password: hashPassword,
-      token: accessToken,
+      token: accessVerify,
     });
 
     const data = await User.findOne({
@@ -121,7 +127,7 @@ const registerUsers = async (req, res) => {
       },
     });
 
-    const link = `http://localhost:8000/api/auth/verify/${accessToken}`;
+    const link = `http://localhost:8000/api/auth/verify/${accessVerify}`;
 
     const mailing = { recipient_email: email, link };
     Mailer.sendEmailRegister(mailing);
@@ -130,7 +136,7 @@ const registerUsers = async (req, res) => {
       ok: true,
       message: "congrats! register successful",
       data,
-      accessToken,
+      accessVerify,
     });
   } catch (error) {
     console.log(error);
@@ -216,15 +222,10 @@ const login = async (req, res) => {
 const verify = async (req, res, next) => {
   try {
     const { tokenId } = req.params;
-    const authHeaders = req.headers["authorization"];
-    const token = authHeaders && authHeaders.split(" ")[1];
-
-    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
     const data = await User.findOne({
       where: {
-        username: decodedToken.username,
-        email: decodedToken.email,
+        token: tokenId,
       },
     });
     // console.log(token);
@@ -250,23 +251,25 @@ const verify = async (req, res, next) => {
 const verifyUser = async (req, res) => {
   const { tokenId } = req.params;
   try {
-    const decodedToken = jwt.verify(tokenId, process.env.ACCESS_TOKEN_SECRET);
-
     const data = await User.findOne({
       where: {
-        username: decodedToken.username,
-        email: decodedToken.email,
+        token: tokenId,
       },
     });
-
-    if (tokenId === data.token && !data.isVerified) {
-      await data.update({ isVerified: true }, { where: { isVerified: false } });
-      res.json({
-        ok: true,
-        message: "verify success",
-        data,
-      });
-    }
+    // gausah update
+    // if (tokenId === data.token && !data.isVerified) {
+    //   await data.update({ isVerified: true }, { where: { isVerified: false } });
+    //   res.json({
+    //     ok: true,
+    //     message: "verify success",
+    //     data,
+    //   });
+    // }
+    res.json({
+      ok: true,
+      message: "verify success",
+      data,
+    });
   } catch (error) {
     console.log(error);
     res.status(400).json({
@@ -276,7 +279,7 @@ const verifyUser = async (req, res) => {
   }
 };
 
-const forgotPassword = async (req, res, next) => {
+const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
     const oldUser = await User.findOne({
@@ -324,84 +327,84 @@ const forgotPassword = async (req, res, next) => {
   }
 };
 
-const getResetPassword = async (req, res, next) => {
-  try {
-    const { otp, newPassword, confirmPassword } = req.body;
-    const { id, token } = req.params;
-    // console.log("TOKEN", token);
-    // console.log("DATA", data);
-    const oldUser = await User.findOne({
-      where: {
-        id: id,
-      },
-    });
+// const getResetPassword = async (req, res, next) => {
+//   try {
+//     const { otp, newPassword, confirmPassword } = req.body;
+//     const { id, token } = req.params;
+//     // console.log("TOKEN", token);
+//     // console.log("DATA", data);
+//     const oldUser = await User.findOne({
+//       where: {
+//         id: id,
+//       },
+//     });
 
-    const secret = process.env.ACCESS_TOKEN_SECRET + oldUser.password;
-    const decodedToken = jwt.verify(token, secret, { expiresIn: "5m" });
+//     const secret = process.env.ACCESS_TOKEN_SECRET + oldUser.password;
+//     const decodedToken = jwt.verify(token, secret, { expiresIn: "5m" });
 
-    if (!oldUser) {
-      return res.status(404).json({
-        ok: false,
-        message: "User not found",
-      });
-    }
+//     if (!oldUser) {
+//       return res.status(404).json({
+//         ok: false,
+//         message: "User not found",
+//       });
+//     }
 
-    const otpData = await ResetPassword.findOne({
-      where: {
-        UserId: decodedToken.id,
-      },
-      order: [["id", "DESC"]],
-      limit: 1,
-    });
+//     const otpData = await ResetPassword.findOne({
+//       where: {
+//         UserId: decodedToken.id,
+//       },
+//       order: [["id", "DESC"]],
+//       limit: 1,
+//     });
 
-    if (!otpData) {
-      return res.status(404).json({
-        ok: false,
-        message: "OTP data not found",
-      });
-    }
-    console.log("otpData", otpData.otp);
-    if (newPassword !== confirmPassword)
-      return res.status(400).json({
-        ok: false,
-        message: "password and confirm password have to match",
-      });
-    const salt = await bcrypt.genSalt(10);
-    const hashPassword = await bcrypt.hash(newPassword, salt);
-    console.log(hashPassword);
+//     if (!otpData) {
+//       return res.status(404).json({
+//         ok: false,
+//         message: "OTP data not found",
+//       });
+//     }
+//     console.log("otpData", otpData.otp);
+//     if (newPassword !== confirmPassword)
+//       return res.status(400).json({
+//         ok: false,
+//         message: "password and confirm password have to match",
+//       });
+//     const salt = await bcrypt.genSalt(10);
+//     const hashPassword = await bcrypt.hash(newPassword, salt);
+//     console.log(hashPassword);
 
-    if (otp === otpData.otp) {
-      await oldUser.update(
-        {
-          password: hashPassword,
-        },
-        {
-          where: {
-            email: decodedToken.email,
-            id: decodedToken.id,
-            password: oldUser.password,
-          },
-        }
-      );
-      res.json({
-        message: "reset password successfully, please log in",
-      });
-    } else {
-      return res.json({
-        message: "reset password failed",
-      });
-    }
-  } catch (error) {
-    console.log(error);
-    return res.status(400).json({
-      ok: false,
-      message: "input your new password",
-    });
-  }
-  next();
-};
+//     if (otp === otpData.otp) {
+//       await oldUser.update(
+//         {
+//           password: hashPassword,
+//         },
+//         {
+//           where: {
+//             email: decodedToken.email,
+//             id: decodedToken.id,
+//             password: oldUser.password,
+//           },
+//         }
+//       );
+//       res.json({
+//         message: "reset password successfully, please log in",
+//       });
+//     } else {
+//       return res.json({
+//         message: "reset password failed",
+//       });
+//     }
+//   } catch (error) {
+//     console.log(error);
+//     return res.status(400).json({
+//       ok: false,
+//       message: "input your new password",
+//     });
+//   }
+//   next();
+// };
 
-const resetPassword = async (req, res, next) => {
+const resetPassword = async (req, res) => {
   try {
     const { otp, newPassword, confirmPassword } = req.body;
     const { id, token } = req.params;
@@ -488,5 +491,5 @@ module.exports = {
   forgotPassword,
   getAllUsers,
   verifyUser,
-  getResetPassword,
+  // getResetPassword,
 };

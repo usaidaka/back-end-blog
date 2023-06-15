@@ -63,7 +63,7 @@ const changeUsername = async (req, res) => {
 
     const decodeToken = jwt_decode(token);
 
-    const data = await User.findAll({
+    const data = await User.findOne({
       where: {
         username: decodeToken.username,
         email: decodeToken.email,
@@ -71,10 +71,10 @@ const changeUsername = async (req, res) => {
     });
     const { currentUsername, newUsername } = req.body;
 
-    if (data[0].username === currentUsername) {
+    if (data.username === currentUsername) {
       await User.update(
         { username: newUsername },
-        { where: { username: data[0].username } }
+        { where: { username: data.username } }
       );
       res.json({
         ok: true,
@@ -84,7 +84,7 @@ const changeUsername = async (req, res) => {
       res.status(400).json({
         ok: false,
         message: "current username not match",
-        data: data[0].username,
+        data: data.username,
       });
     }
   } catch (error) {
@@ -134,6 +134,7 @@ const changeEmail = async (req, res) => {
     });
   }
 };
+
 const changePhone = async (req, res) => {
   try {
     const authHeaders = req.headers["authorization"];
@@ -141,7 +142,7 @@ const changePhone = async (req, res) => {
 
     const decodeToken = jwt_decode(token);
 
-    const data = await User.findAll({
+    const data = await User.findOne({
       where: {
         username: decodeToken.username,
         email: decodeToken.email,
@@ -149,11 +150,8 @@ const changePhone = async (req, res) => {
     });
     const { currentPhone, newPhone } = req.body;
 
-    if (data[0].phone === currentPhone) {
-      await User.update(
-        { phone: newPhone },
-        { where: { phone: data[0].phone } }
-      );
+    if (data.phone === currentPhone) {
+      await User.update({ phone: newPhone }, { where: { phone: data.phone } });
       res.json({
         ok: true,
         message: "change phone successful",
@@ -181,7 +179,7 @@ const singleUpload = async (req, res) => {
 
     const decodeToken = jwt_decode(token);
 
-    const data = await User.findAll({
+    const data = await User.findOne({
       where: {
         username: decodeToken.username,
         email: decodeToken.email,
@@ -193,7 +191,7 @@ const singleUpload = async (req, res) => {
 
     const photoProfile = req.file.filename;
 
-    await data[0].update(
+    await data.update(
       { imgProfile: `/photoProfile/${photoProfile}` },
       { where: { imgProfile: null } }
     );

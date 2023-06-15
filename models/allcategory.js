@@ -9,6 +9,7 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
+      AllCategory.hasOne(models.Blog, { foreignKey: "id" });
     }
   }
   AllCategory.init(

@@ -9,18 +9,14 @@ routerAuth.delete("/auth/:userId", AuthController.deleteUser);
 routerAuth.post("/auth/login", AuthController.login);
 
 routerAuth.get("/auth/verify/:tokenId", AuthController.verifyUser);
-routerAuth.patch(
-  "/auth/verify/:tokenId",
-  AuthController.verifyUser,
-  AuthController.verify
-);
+routerAuth.patch("/auth/verify/:tokenId", AuthController.verify);
 
 routerAuth.post("/auth/forgot-password", AuthController.forgotPassword);
 
 routerAuth.get("/auth/reset-password/:id/:token", AuthController.resetPassword);
 routerAuth.patch(
   "/auth/reset-password/:id/:token",
-  AuthController.getResetPassword,
+  // AuthController.getResetPassword,
   AuthController.resetPassword
 );
 

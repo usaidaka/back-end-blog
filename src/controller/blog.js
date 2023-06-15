@@ -1,147 +1,100 @@
-const jwt_decode = require("jwt-decode");
 const models = require("../../models/index");
 const { Op } = require("sequelize");
 const { AllCategory, Blog, User, Like } = require("../../models");
+const sequelize = require("sequelize");
 
 const getBlogs = async (req, res) => {
+  const pagination = {
+    page: Number(req.query.page) || 1,
+    perPage: Number(req.query.perPage) || 5,
+    search: req.query.search || undefined,
+    category: req.query.category || "",
+    sort: req.query.sort || "DESC",
+    keywords: req.query.keywords || "",
+    title: req.query.title || "",
+    username: req.query.username || "",
+  };
+  const limit = pagination.perPage;
+  const offset = (pagination.page - 1) * pagination.perPage;
+
   try {
-    const { query } = req;
-    // filtering
-    let totalData;
-    let data;
-    const category = query.category || "";
-    const sorting = query.sort || "desc";
-    const keywords = query.keywords || "";
-    const username = query.username || "";
-
-    // pagination
-    const page = parseInt(query.page) || 1;
-    const limit = parseInt(query.limit) || 8;
-    const offset = (page - 1) * limit;
-
-    if (query) {
-      totalData = await Blog.findAll();
-      data = await Blog.findAll(
-        {
-          limit,
-          offset,
-        },
-        {
-          where: {
-            CategoryId: category,
-            [Op.or]: [
-              { title: { [Op.like]: `%${keywords}%` } },
-              { content: { [Op.like]: `%${keywords}%` } },
-            ],
-          },
-          attributes: {
-            include: [
-              [
-                models.sequelize.fn(
-                  "count",
-                  models.sequelize.col("likes.UserId")
-                ),
-                "total_like",
-              ],
-            ],
-          },
-          include: [
-            { model: AllCategory },
-            {
-              model: User,
-              where: {
-                username: { [Op.like]: `%${username}%` },
-              },
-              attributes: {
-                exclude: [
-                  "createdAt",
-                  "updatedAt",
-                  "password",
-                  "phone",
-                  "role",
-                  "isVerified",
-                  "token",
-                  "expired-token",
-                ],
-              },
-            },
-            {
-              model: Like,
-              attributes: [],
-            },
-          ],
-          group: ["Blog.id"],
-          order: [["createdAt", sorting]],
-        }
-      );
-    }
-
-    if (!query.category) {
-      totalData = await Blog.findAll();
-      data = await Blog.findAll(
-        {
-          limit,
-          offset,
-        },
-        {
-          where: {
-            [Op.or]: [
-              { title: { [Op.like]: `%${keywords}%` } },
-              { content: { [Op.like]: `%${keywords}%` } },
-            ],
-          },
-          attributes: {
-            include: [
-              [
-                models.sequelize.fn(
-                  "count",
-                  models.sequelize.col("likes.UserId")
-                ),
-                "total_like",
-              ],
-            ],
-          },
-          include: [
-            { model: AllCategory },
-            {
-              model: User,
-              where: {
-                username: { [Op.like]: `%${username}%` },
-              },
-              attributes: {
-                exclude: [
-                  "createdAt",
-                  "updatedAt",
-                  "password",
-                  "phone",
-                  "role",
-                  "isVerified",
-                  "token",
-                  "expired-token",
-                ],
-              },
-            },
-            {
-              model: Like,
-              attributes: [],
-            },
-          ],
-          group: ["Blog.id"],
-          order: [["createdAt", sorting]],
-        }
-      );
-    }
-
+    const totalData = await Blog.findAll();
     const totalPage = Math.ceil(totalData.length / limit);
+    const where = {};
+    if (pagination.search) {
+      where.content = {
+        [Op.like]: `%${pagination.search}%`,
+      };
+    }
+    if (pagination.category) {
+      where.CategoryId = {
+        [Op.like]: `%${pagination.category}%`,
+      };
+    }
+    if (pagination.keywords) {
+      where.keywords = {
+        [Op.like]: `%${pagination.keywords}%`,
+      };
+    }
+    if (pagination.title) {
+      where.title = {
+        [Op.like]: `%${pagination.title}%`,
+      };
+    }
 
-    res.status(200).json({
-      ok: true,
-      page,
+    const result = await Blog.findAll({
+      attributes: {
+        include: [
+          [
+            sequelize.literal(
+              `(SELECT COUNT(*) FROM Likes WHERE Likes.BlogId = Blog.id)`
+            ),
+            "total_like",
+          ],
+        ],
+      },
+      include: [
+        { model: AllCategory },
+        {
+          model: User,
+          attributes: {
+            exclude: [
+              "createdAt",
+              "updatedAt",
+              "password",
+              "phone",
+              "role",
+              "isVerified",
+              "token",
+              "expired-token",
+            ],
+          },
+        },
+        {
+          model: Like,
+          attributes: [],
+        },
+      ],
+      where,
       limit,
+      offset,
+      order: [["createdAt", pagination.sort]],
+    });
+
+    // const dataResult = JSON.parse(JSON.stringify(result));
+    // for (let i = 0; i < dataResult.length; i++) {
+    //   const data = dataResult[i];
+    //   dataResult[i].total_like = data.Likes.length;
+    //   delete dataResult[i].Likes;
+    // }
+
+    // const resultLatest = await result.findAll({ limit, offset });
+
+    res.json({
+      message: "success get blog",
       totalPage,
-      data: data,
-      // category,
-      // user,
+      pagination,
+      result,
     });
   } catch (error) {
     console.log(error);
@@ -152,17 +105,439 @@ const getBlogs = async (req, res) => {
   }
 };
 
+// const getBlogs = async (req, res) => {
+//   try {
+//     const { query } = req;
+//     console.log(query);
+//     // filtering
+//     const totalData = await Blog.findAll();
+//     let data;
+//     const category = query.category || "";
+//     const sorting = query.sort || "desc";
+//     const keywords = query.keywords || "";
+//     const username = query.username || "";
+
+//     // pagination
+//     const page = parseInt(query.page) || 1;
+//     const limit = parseInt(query.limit) || 8;
+//     const offset = (page - 1) * limit;
+//     const totalPage = Math.ceil(totalData.length / limit);
+
+//     data = await Blog.findAll({
+//       where: {
+//         CategoryId: category,
+//         [Op.or]: [
+//           { title: { [Op.like]: `%${keywords}%` } },
+//           { content: { [Op.like]: `%${keywords}%` } },
+//         ],
+//       },
+//       include: [
+//         { model: AllCategory },
+//         {
+//           model: User,
+//           where: {
+//             username: { [Op.like]: `%${username}%` },
+//           },
+//           attributes: {
+//             exclude: [
+//               "createdAt",
+//               "updatedAt",
+//               "password",
+//               "phone",
+//               "role",
+//               "isVerified",
+//               "token",
+//               "expired-token",
+//             ],
+//           },
+//         },
+//         {
+//           model: Like,
+//           attributes: [],
+//         },
+//       ],
+
+//       attributes: {
+//         include: [
+//           [
+//             models.sequelize.fn("count", models.sequelize.col("likes.UserId")),
+//             "total_like",
+//           ],
+//         ],
+//       },
+
+//       group: ["Blog.id"],
+//       order: [["createdAt", sorting]],
+//     });
+//     console.log("dari atas");
+//       const allBlog = await await Blog.findAll({ limit, offset });
+//       // console.log("data", data);
+//       if (data && !category) {
+//         console.log("data");
+//         return res.status(200).json({
+//           ok: true,
+//           page,
+//           limit,
+//           totalPage,
+//           data: allBlog,
+
+//           // category,
+//           // user,
+//         });
+//       } else if (category) {
+//         console.log("query");
+//         return res.status(200).json({
+//           ok: true,
+//           page,
+//           limit,
+//           totalPage,
+//           data: data,
+//           // category,
+//           // user,
+//         });
+//       }
+//   } catch (error) {
+//     console.log(error);
+//     res.status(400).json({
+//       ok: false,
+//       message: error.message,
+//     });
+//   }
+// };
+// const getBlogs = async (req, res) => {
+//   try {
+//     const { query } = req;
+//     console.log(query);
+//     // filtering
+//     const totalData = await Blog.findAll();
+//     let data;
+//     const category = query.category || "";
+//     const sorting = query.sort || "desc";
+//     const keywords = query.keywords || "";
+//     const username = query.username || "";
+
+//     // pagination
+//     const page = parseInt(query.page) || 1;
+//     const limit = parseInt(query.limit) || 8;
+//     const offset = (page - 1) * limit;
+//     const totalPage = Math.ceil(totalData.length / limit);
+
+//     data = await Blog.findAll({
+//       where: {
+//         CategoryId: category,
+//         [Op.or]: [
+//           { title: { [Op.like]: `%${keywords}%` } },
+//           { content: { [Op.like]: `%${keywords}%` } },
+//         ],
+//       },
+//       include: [
+//         { model: AllCategory },
+//         {
+//           model: User,
+//           where: {
+//             username: { [Op.like]: `%${username}%` },
+//           },
+//           attributes: {
+//             exclude: [
+//               "createdAt",
+//               "updatedAt",
+//               "password",
+//               "phone",
+//               "role",
+//               "isVerified",
+//               "token",
+//               "expired-token",
+//             ],
+//           },
+//         },
+//         {
+//           model: Like,
+//           attributes: [],
+//         },
+//       ],
+
+//       attributes: {
+//         include: [
+//           [
+//             models.sequelize.fn("count", models.sequelize.col("likes.UserId")),
+//             "total_like",
+//           ],
+//         ],
+//       },
+
+//       group: ["Blog.id"],
+//       order: [["createdAt", sorting]],
+//     });
+//     console.log("dari atas");
+//     const allBlog = await await Blog.findAll({ limit, offset });
+//     // console.log("data", data);
+//     if (data && !category) {
+//       console.log("data");
+//       return res.status(200).json({
+//         ok: true,
+//         page,
+//         limit,
+//         totalPage,
+//         data: allBlog,
+
+//         // category,
+//         // user,
+//       });
+//     } else if (category) {
+//       console.log("query");
+//       return res.status(200).json({
+//         ok: true,
+//         page,
+//         limit,
+//         totalPage,
+//         data: data,
+//         // category,
+//         // user,
+//       });
+//     }
+
+//     // if (!query) {
+//     //   data = await Blog.findAll(
+//     //     {
+//     //       limit,
+//     //       offset,
+//     //     },
+//     //     {
+//     //       where: {
+//     //         [Op.or]: [
+//     //           { title: { [Op.like]: `%${keywords}%` } },
+//     //           { content: { [Op.like]: `%${keywords}%` } },
+//     //         ],
+//     //       },
+
+//     //       include: [
+//     //         { model: AllCategory },
+//     //         {
+//     //           model: User,
+//     //           where: {
+//     //             username: { [Op.like]: `%${username}%` },
+//     //           },
+//     //           attributes: {
+//     //             exclude: [
+//     //               "createdAt",
+//     //               "updatedAt",
+//     //               "password",
+//     //               "phone",
+//     //               "role",
+//     //               "isVerified",
+//     //               "token",
+//     //               "expired-token",
+//     //             ],
+//     //           },
+//     //         },
+//     //         {
+//     //           model: Like,
+//     //           attributes: [],
+//     //         },
+//     //       ],
+
+//     //       attributes: {
+//     //         include: [
+//     //           [
+//     //             models.sequelize.fn(
+//     //               "count",
+//     //               models.sequelize.col("likes.UserId")
+//     //             ),
+//     //             "total_like",
+//     //           ],
+//     //         ],
+//     //       },
+//     //       group: ["Blog.id"],
+//     //       order: [["createdAt", sorting]],
+//     //     }
+//     //   );
+//     //   console.log("dari bawah");
+//     //   return res.status(200).json({
+//     //     ok: true,
+//     //     page,
+//     //     limit,
+//     //     totalPage,
+//     //     data: data,
+//     //     // category,
+//     //     // user,
+//     //   });
+//     // }
+//   } catch (error) {
+//     console.log(error);
+//     res.status(400).json({
+//       ok: false,
+//       message: error.message,
+//     });
+//   }
+// };
+
+// const getBlogs = async (req, res) => {
+//   const pagination = {
+//     page: Number(req.query.page) || 1,
+//     perPage: Number(req.query.perPage) || 4,
+//     search: req.query.search || undefined,
+//     sortBy: req.query.sortBy,
+//   };
+//   try {
+//     const where = {};
+//     where.title = { [Op.like]: `%${pagination.search}%` };
+//     const order = [];
+//     for (const sort in pagination.sortBy) {
+//       order.push([sort, pagination.sortBy[sort]]);
+//     }
+
+//     const blog = await Blog.findAll({
+//       where,
+//       include: [
+//         { model: AllCategory },
+//         {
+//           model: User,
+//           attributes: {
+//             exclude: [
+//               "createdAt",
+//               "updatedAt",
+//               "password",
+//               "phone",
+//               "role",
+//               "isVerified",
+//               "token",
+//               "expired-token",
+//             ],
+//           },
+//         },
+//         {
+//           model: Like,
+//           attributes: [],
+//         },
+//       ],
+//       attributes: {
+//         include: [
+//           [
+//             models.sequelize.fn("count", models.sequelize.col("likes.UserId")),
+//             "total_like",
+//           ],
+//         ],
+//       },
+
+//       group: ["Blog.id"],
+
+//       limit: pagination.perPage,
+//       offset: (pagination.page - 1) * pagination.perPage,
+//       order,
+//     });
+
+//     const totalBlog = await Blog.count({ where });
+//     res.send({
+//       message: "get all blog",
+//       pagination: {
+//         page: pagination.page,
+//         perPage: pagination.perPage,
+//         totalData: totalBlog,
+//         search: [],
+//         order: [],
+//       },
+//       data: blog,
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     return res.status(400).json({
+//       ok: false,
+//       message: error.message,
+//     });
+//   }
+// };
+
+// const getBlogs = async (req, res) => {
+//   try {
+//     const { query } = req;
+//     // Filtering
+//     const category = query.category || "";
+//     const sorting = query.sort || "desc";
+//     const keywords = query.keywords || "";
+//     const username = query.username || "";
+
+//     // Pagination
+//     const page = parseInt(query.page) || 1;
+//     const limit = parseInt(query.limit) || 8;
+//     const offset = (page - 1) * limit;
+
+//     const where = {
+//       CategoryId: category,
+//       [Op.or]: [
+//         { title: { [Op.like]: `%${keywords}%` } },
+//         { content: { [Op.like]: `%${keywords}%` } },
+//       ],
+//     };
+
+//     const include = [
+//       { model: AllCategory },
+//       {
+//         model: User,
+//         where: {
+//           username: { [Op.like]: `%${username}%` },
+//         },
+//         attributes: {
+//           exclude: [
+//             "createdAt",
+//             "updatedAt",
+//             "password",
+//             "phone",
+//             "role",
+//             "isVerified",
+//             "token",
+//             "expired-token",
+//           ],
+//         },
+//       },
+//       {
+//         model: Like,
+//         attributes: [],
+//       },
+//     ];
+
+//     const order = [["createdAt", sorting]];
+
+//     const { count, rows: blogs } = await Blog.findAndCountAll({
+//       where,
+//       include,
+//       attributes: {
+//         include: [
+//           [
+//             models.sequelize.fn("count", models.sequelize.col("likes.UserId")),
+//             "total_like",
+//           ],
+//         ],
+//       },
+//       group: ["Blog.id"],
+//       order,
+//       // limit,
+//       // offset,
+//     });
+
+//     const totalPage = Math.ceil(count / limit);
+
+//     res.status(200).json({
+//       ok: true,
+//       page,
+//       limit,
+//       totalPage,
+//       data: blogs,
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(400).json({
+//       ok: false,
+//       message: error.message,
+//     });
+//   }
+// };
+
 const getUserBlogs = async (req, res) => {
   try {
-    const authHeaders = req.headers["authorization"];
-    const token = authHeaders && authHeaders.split(" ")[1];
-
-    const decodeToken = jwt_decode(token);
-
     const dataUser = await User.findOne({
       where: {
-        username: decodeToken.username,
-        email: decodeToken.email,
+        username: req.user.username,
+        email: req.user.email,
       },
     });
 
@@ -184,15 +559,11 @@ const getUserBlogs = async (req, res) => {
 const createBlog = async (req, res) => {
   try {
     const data = JSON.parse(req.body.data);
-    const authHeaders = req.headers["authorization"];
-    const token = authHeaders && authHeaders.split(" ")[1];
-
-    const decodeToken = jwt_decode(token);
 
     const dataUser = await User.findOne({
       where: {
-        username: decodeToken.username,
-        email: decodeToken.email,
+        username: req.user.username,
+        email: req.user.email,
       },
     });
     const imageURL = req.file.filename;
@@ -240,15 +611,10 @@ const allCategory = async (req, res) => {
 
 const like = async (req, res) => {
   try {
-    const authHeaders = req.headers["authorization"];
-    const token = authHeaders && authHeaders.split(" ")[1];
-
-    const decodeToken = jwt_decode(token);
-
     const dataUser = await User.findOne({
       where: {
-        username: decodeToken.username,
-        email: decodeToken.email,
+        username: req.user.username,
+        email: req.user.email,
       },
       attributes: {
         exclude: ["token"],
@@ -291,17 +657,13 @@ const like = async (req, res) => {
 
 const pagLike = async (req, res) => {
   try {
-    const authHeaders = req.headers["authorization"];
-    const token = authHeaders && authHeaders.split(" ")[1];
-
-    const decodeToken = jwt_decode(token);
-
-    const dataUser = await User.findAll({
+    const dataUser = await User.findOne({
       where: {
-        username: decodeToken.username,
-        email: decodeToken.email,
+        username: req.user.username,
+        email: req.user.email,
       },
     });
+    console.log(dataUser);
 
     const data = await Blog.findAll(
       {
@@ -335,6 +697,9 @@ const pagLike = async (req, res) => {
           },
           {
             model: Like,
+            where: {
+              UserId: dataUser.id,
+            },
             attributes: [],
           },
         ],
@@ -343,11 +708,11 @@ const pagLike = async (req, res) => {
       },
       {
         where: {
-          UserId: dataUser[0].id,
+          UserId: dataUser.id,
         },
       }
     );
-
+    // console.log("DATA", data);
     res.status(200).json({
       ok: true,
       data: data,
@@ -366,16 +731,28 @@ const pagLike = async (req, res) => {
 
 const unLike = async (req, res) => {
   try {
-    const { id } = req.params;
-    await Like.destroy({
-      where: {
-        BlogId: id,
-      },
+    const { BlogId } = req.body;
+    console.log(BlogId);
+    const user = await User.findOne({
+      where: { id: req.user.userId },
     });
-    res.status(200).json({
-      ok: true,
-      message: `unlike on Blog Id ${id}`,
-    });
+
+    if (user) {
+      await Like.destroy({
+        where: {
+          BlogId,
+        },
+      });
+      res.status(200).json({
+        ok: true,
+        message: `unlike on Blog Id ${BlogId}`,
+      });
+    } else {
+      res.status(400).json({
+        ok: false,
+        message: "token is invalid",
+      });
+    }
   } catch (error) {
     console.log(error);
     res.status(400).json({
@@ -385,13 +762,68 @@ const unLike = async (req, res) => {
   }
 };
 
+// const pagFav = async (req, res) => {
+//   try {
+//     const data = await Blog.findAll({
+//       attributes: {
+//         include: [
+//           [
+//             models.sequelize.fn("COUNT", models.sequelize.col("likes.UserId")),
+//             "total_like",
+//           ],
+//         ],
+//       },
+//       include: [
+//         { model: AllCategory },
+//         {
+//           model: User,
+//           attributes: {
+//             exclude: [
+//               "createdAt",
+//               "updatedAt",
+//               "password",
+//               "phone",
+//               "role",
+//               "isVerified",
+//               "token",
+//               "expired-token",
+//             ],
+//           },
+//         },
+//         {
+//           model: Like,
+//           attributes: [],
+//         },
+//       ],
+//       group: ["Blog.id"],
+//       order: [["total_like", "desc"]],
+//       // limit: 10,
+//     });
+
+//     res.status(200).json({
+//       ok: true,
+//       data: data,
+//       // category,
+//       // user,
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(400).json({
+//       ok: false,
+//       message: error.message,
+//     });
+//   }
+// };
+
 const pagFav = async (req, res) => {
   try {
     const data = await Blog.findAll({
       attributes: {
         include: [
           [
-            models.sequelize.fn("COUNT", models.sequelize.col("likes.UserId")),
+            sequelize.literal(
+              `(SELECT COUNT(*) FROM Likes WHERE Likes.BlogId = Blog.id)`
+            ),
             "total_like",
           ],
         ],
@@ -413,14 +845,14 @@ const pagFav = async (req, res) => {
             ],
           },
         },
-
         {
           model: Like,
           attributes: [],
         },
       ],
       group: ["Blog.id"],
-      order: [["total_like", "desc"]],
+      order: [[sequelize.literal("total_like"), "desc"]],
+      limit: 10,
     });
 
     res.status(200).json({

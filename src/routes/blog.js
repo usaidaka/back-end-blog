@@ -19,10 +19,6 @@ routerBlog.get("/blog/allCategory", BlogController.allCategory);
 routerBlog.get("/blog/pag-like", verifyToken, BlogController.pagLike);
 routerBlog.get("/blog/pag-fav", BlogController.pagFav);
 routerBlog.delete("/blog/remove/:id", verifyToken, BlogController.deleteBlog);
-routerBlog.delete(
-  "/blog/pag-like/remove/:id",
-  verifyToken,
-  BlogController.unLike
-);
+routerBlog.delete("/blog/pag-like/remove", verifyToken, BlogController.unLike);
 
 module.exports = routerBlog;

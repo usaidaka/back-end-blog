@@ -24,11 +24,13 @@ module.exports = (sequelize, DataTypes) => {
       country: DataTypes.STRING,
       url: DataTypes.STRING,
       keywords: DataTypes.STRING,
+      total_like: DataTypes.VIRTUAL,
     },
     {
       sequelize,
       modelName: "Blog",
     }
   );
+
   return Blog;
 };
