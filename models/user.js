@@ -33,6 +33,13 @@ module.exports = (sequelize, DataTypes) => {
       imgProfile: {
         type: DataTypes.STRING,
         unique: true,
+        get() {
+          const rawValue = this.getDataValue("imgProfile");
+          if (rawValue) {
+            return `${process.env.BASEPATH}/${rawValue}`;
+          }
+          return null;
+        },
       },
       phone: {
         type: DataTypes.STRING,

@@ -1,14 +1,27 @@
 const routerAuth = require("express").Router();
+// controller
 const AuthController = require("../controller/auth");
+// middleware
+const Validation = require("../validation");
 
 routerAuth.get("/auth", AuthController.getUser);
 routerAuth.get("/auth/AllUsers", AuthController.getAllUsers);
-routerAuth.post("/auth", AuthController.registerUsers);
+routerAuth.post(
+  "/auth",
+  Validation.registerValidation,
+  Validation.runValidation,
+  AuthController.registerUsers
+);
 routerAuth.delete("/auth/:userId", AuthController.deleteUser);
 
-routerAuth.post("/auth/login", AuthController.login);
+routerAuth.post(
+  "/auth/login",
+  Validation.loginValidation,
+  Validation.runValidation,
+  AuthController.login
+);
 
-routerAuth.get("/auth/verify/:tokenId", AuthController.verifyUser);
+// routerAuth.get("/auth/verify/:tokenId", AuthController.verifyUser);
 routerAuth.patch("/auth/verify/:tokenId", AuthController.verify);
 
 routerAuth.post("/auth/forgot-password", AuthController.forgotPassword);

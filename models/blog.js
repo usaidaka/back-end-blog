@@ -20,7 +20,16 @@ module.exports = (sequelize, DataTypes) => {
       content: DataTypes.STRING,
       UserId: DataTypes.INTEGER,
       CategoryId: DataTypes.STRING,
-      imageURL: DataTypes.STRING,
+      imageURL: {
+        type: DataTypes.STRING,
+        get() {
+          const rawValue = this.getDataValue("imageURL");
+          if (rawValue) {
+            return `${process.env.BASEPATH}/photoBlogs/${rawValue}`;
+          }
+          return null;
+        },
+      },
       country: DataTypes.STRING,
       url: DataTypes.STRING,
       keywords: DataTypes.STRING,

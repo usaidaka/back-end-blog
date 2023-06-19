@@ -248,36 +248,36 @@ const verify = async (req, res, next) => {
   next();
 };
 
-const verifyUser = async (req, res) => {
-  const { tokenId } = req.params;
-  try {
-    const data = await User.findOne({
-      where: {
-        token: tokenId,
-      },
-    });
-    // gausah update
-    // if (tokenId === data.token && !data.isVerified) {
-    //   await data.update({ isVerified: true }, { where: { isVerified: false } });
-    //   res.json({
-    //     ok: true,
-    //     message: "verify success",
-    //     data,
-    //   });
-    // }
-    res.json({
-      ok: true,
-      message: "verify success",
-      data,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(400).json({
-      ok: false,
-      message: error.message,
-    });
-  }
-};
+// const verifyUser = async (req, res) => {
+//   const { tokenId } = req.params;
+//   try {
+//     const data = await User.findOne({
+//       where: {
+//         token: tokenId,
+//       },
+//     });
+//     // gausah update
+//     // if (tokenId === data.token && !data.isVerified) {
+//     //   await data.update({ isVerified: true }, { where: { isVerified: false } });
+//     //   res.json({
+//     //     ok: true,
+//     //     message: "verify success",
+//     //     data,
+//     //   });
+//     // }
+//     res.json({
+//       ok: true,
+//       message: "verify success",
+//       data,
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(400).json({
+//       ok: false,
+//       message: error.message,
+//     });
+//   }
+// };
 
 const forgotPassword = async (req, res) => {
   try {
@@ -311,6 +311,7 @@ const forgotPassword = async (req, res) => {
     });
 
     const newOTP = { recipient_email: email, OTP, link };
+
     Mailer.sendEmailForgotPassword(newOTP)
       .then((response) =>
         res.status(200).json({
@@ -490,6 +491,6 @@ module.exports = {
   resetPassword,
   forgotPassword,
   getAllUsers,
-  verifyUser,
+  // verifyUser,
   // getResetPassword,
 };

@@ -1,21 +1,13 @@
 const { User } = require("../../models");
-
-const jwt_decode = require("jwt-decode");
 const bcrypt = require("bcrypt");
+const fs = require("fs");
 
-// bagaimana membuat condition agar password lama (yg berupa hashing) === newPassword (yg di hashing) sementara hashing di newPassword berbeda2
-// bcrypt match
 const changePassword = async (req, res) => {
   try {
-    const authHeaders = req.headers["authorization"];
-    const token = authHeaders && authHeaders.split(" ")[1];
-
-    const decodeToken = jwt_decode(token);
-
     const data = await User.findAll({
       where: {
-        username: decodeToken.username,
-        email: decodeToken.email,
+        username: req.user.username,
+        email: req.user.email,
       },
     });
     const { currentPassword, password, confirmPassword } = req.body;
@@ -58,15 +50,10 @@ const changePassword = async (req, res) => {
 
 const changeUsername = async (req, res) => {
   try {
-    const authHeaders = req.headers["authorization"];
-    const token = authHeaders && authHeaders.split(" ")[1];
-
-    const decodeToken = jwt_decode(token);
-
     const data = await User.findOne({
       where: {
-        username: decodeToken.username,
-        email: decodeToken.email,
+        username: req.user.username,
+        email: req.user.email,
       },
     });
     const { currentUsername, newUsername } = req.body;
@@ -98,24 +85,17 @@ const changeUsername = async (req, res) => {
 
 const changeEmail = async (req, res) => {
   try {
-    const authHeaders = req.headers["authorization"];
-    const token = authHeaders && authHeaders.split(" ")[1];
-
-    const decodeToken = jwt_decode(token);
-
-    const data = await User.findAll({
+    const data = await User.findOne({
       where: {
-        username: decodeToken.username,
-        email: decodeToken.email,
+        username: req.user.username,
+        email: req.user.email,
       },
     });
+
     const { currentEmail, newEmail } = req.body;
 
-    if (data[0].email === currentEmail) {
-      await User.update(
-        { email: newEmail },
-        { where: { email: data[0].email } }
-      );
+    if (data.email === currentEmail) {
+      await User.update({ email: newEmail }, { where: { email: data.email } });
       res.json({
         ok: true,
         message: "change email successful and please log in again",
@@ -137,15 +117,10 @@ const changeEmail = async (req, res) => {
 
 const changePhone = async (req, res) => {
   try {
-    const authHeaders = req.headers["authorization"];
-    const token = authHeaders && authHeaders.split(" ")[1];
-
-    const decodeToken = jwt_decode(token);
-
     const data = await User.findOne({
       where: {
-        username: decodeToken.username,
-        email: decodeToken.email,
+        username: req.user.username,
+        email: req.user.email,
       },
     });
     const { currentPhone, newPhone } = req.body;
@@ -174,31 +149,36 @@ const changePhone = async (req, res) => {
 
 const singleUpload = async (req, res) => {
   try {
-    const authHeaders = req.headers["authorization"];
-    const token = authHeaders && authHeaders.split(" ")[1];
-
-    const decodeToken = jwt_decode(token);
-
     const data = await User.findOne({
       where: {
-        username: decodeToken.username,
-        email: decodeToken.email,
+        username: req.user.username,
+        email: req.user.email,
       },
       attributes: {
-        exclude: ["token"],
+        exclude: ["token", "password"],
       },
     });
-
     const photoProfile = req.file.filename;
+    let previousImage;
+    if (data.imgProfile != null) {
+      previousImage = data.getDataValue("imgProfile").split("/")[1];
+    }
 
-    await data.update(
-      { imgProfile: `/photoProfile/${photoProfile}` },
-      { where: { imgProfile: null } }
+    const dataUser = await data.update(
+      { imgProfile: `photoProfile/${photoProfile}` },
+      { where: { imgProfile: data.id } }
     );
+
+    if (req.file && previousImage != null) {
+      const mainImageProfile = data.getDataValue("imgProfile").split("/")[1];
+      if (previousImage && previousImage !== mainImageProfile) {
+        fs.unlinkSync(`${__dirname}/../../Public/images/${previousImage}`);
+      }
+    }
     res.json({
       ok: true,
       message: "single upload",
-      data,
+      data: dataUser,
     });
   } catch (error) {
     console.log(error);

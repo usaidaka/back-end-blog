@@ -80,6 +80,14 @@ const getBlogs = async (req, res) => {
       offset,
       order: [["createdAt", pagination.sort]],
     });
+    // console.log(
+    //   result.map(
+    //     (x) =>
+    //       (x.imageURL = `${process.env.BASEPATH}${result.map(
+    //         (x) => x.imageURL
+    //       )}`)
+    //   )
+    // );
 
     // const dataResult = JSON.parse(JSON.stringify(result));
     // for (let i = 0; i < dataResult.length; i++) {
@@ -566,6 +574,7 @@ const createBlog = async (req, res) => {
         email: req.user.email,
       },
     });
+
     const imageURL = req.file.filename;
 
     const result = await Blog.create({
@@ -573,11 +582,12 @@ const createBlog = async (req, res) => {
       content: data.content,
       UserId: dataUser.id,
       CategoryId: data.CategoryId,
-      imageURL: `/photoBlogs/${imageURL}`,
+      imageURL: `photoBlogs/${imageURL}`,
       country: data.country,
       url: data.url,
       keywords: data.keywords,
     });
+    result.imageURL = `${process.env.BASEPATH}/photoBlogs/${imageURL}`;
 
     res.status(201).json({
       ok: true,
