@@ -10,6 +10,7 @@ routerProfile.post(
   "/profile/single-uploaded",
   verifyToken,
   upload.single("file"),
+  Validation.changeImageProfile,
   ProfileController.singleUpload
 );
 
@@ -43,6 +44,14 @@ routerProfile.patch(
   Validation.changeEmailValidation,
   Validation.runValidation,
   ProfileController.changeEmail
+);
+
+routerProfile.delete(
+  "/profile/close-account",
+  verifyToken,
+  Validation.deleteUser,
+  Validation.runValidation,
+  ProfileController.closeAccount
 );
 
 module.exports = routerProfile;

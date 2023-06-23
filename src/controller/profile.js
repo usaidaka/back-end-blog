@@ -1,8 +1,12 @@
-const { User } = require("../../models");
+const { User, Blog, Like, ResetPassword } = require("../../models");
 const bcrypt = require("bcrypt");
 const fs = require("fs");
+const crypto = require("crypto");
+const Mailer = require("../controller/mailer");
+const db = require("../../models");
 
 const changePassword = async (req, res) => {
+  const t = await db.sequelize.transaction();
   try {
     const data = await User.findAll({
       where: {
@@ -10,6 +14,14 @@ const changePassword = async (req, res) => {
         email: req.user.email,
       },
     });
+
+    if (!data) {
+      return res.status(401).json({
+        ok: false,
+        message: "User not found",
+      });
+    }
+
     const { currentPassword, password, confirmPassword } = req.body;
 
     if (password !== confirmPassword) {
@@ -33,15 +45,19 @@ const changePassword = async (req, res) => {
 
     await User.update(
       { password: hashNewPassword },
-      { where: { password: data[0].password } }
+      { where: { password: data[0].password } },
+      { transaction: t }
     );
+
+    await t.commit();
     res.json({
       ok: true,
       message: "change password successful. please log in",
     });
   } catch (error) {
     console.log(error);
-    res.status(400).json({
+    await t.rollback();
+    res.status(500).json({
       ok: false,
       message: error.stack,
     });
@@ -49,26 +65,49 @@ const changePassword = async (req, res) => {
 };
 
 const changeUsername = async (req, res) => {
+  const t = await db.sequelize.transaction();
   try {
+    const { newUsername } = req.body;
     const data = await User.findOne({
       where: {
         username: req.user.username,
         email: req.user.email,
       },
     });
-    const { currentUsername, newUsername } = req.body;
 
-    if (data.username === currentUsername) {
+    if (!data) {
+      return res.status(401).json({
+        ok: false,
+        message: "user not found",
+      });
+    }
+
+    const isUsernameExist = await User.findOne({
+      where: {
+        username: newUsername,
+      },
+    });
+
+    if (isUsernameExist) {
+      return res.json({
+        ok: true,
+        message: "username already exist",
+      });
+    }
+
+    if (data) {
       await User.update(
         { username: newUsername },
-        { where: { username: data.username } }
+        { where: { username: data.username } },
+        { transaction: t }
       );
-      res.json({
+      return res.json({
         ok: true,
         message: "change username successful and please log in again",
       });
     } else {
-      res.status(400).json({
+      await t.rollback();
+      return res.status(400).json({
         ok: false,
         message: "current username not match",
         data: data.username,
@@ -76,7 +115,8 @@ const changeUsername = async (req, res) => {
     }
   } catch (error) {
     console.log(error);
-    res.status(400).json({
+    await t.rollback();
+    res.status(500).json({
       ok: false,
       message: error.message,
     });
@@ -84,7 +124,9 @@ const changeUsername = async (req, res) => {
 };
 
 const changeEmail = async (req, res) => {
+  const t = await db.sequelize.transaction();
   try {
+    const { newEmail } = req.body;
     const data = await User.findOne({
       where: {
         username: req.user.username,
@@ -92,15 +134,54 @@ const changeEmail = async (req, res) => {
       },
     });
 
-    const { currentEmail, newEmail } = req.body;
+    if (!data) {
+      return res.status(401).json({
+        ok: false,
+        message: "account not found",
+      });
+    }
 
-    if (data.email === currentEmail) {
-      await User.update({ email: newEmail }, { where: { email: data.email } });
+    const isEmailExist = await User.findOne({
+      where: {
+        email: newEmail,
+      },
+    });
+
+    if (isEmailExist) {
+      return res.status(400).json({
+        message: "email already taken",
+      });
+    }
+
+    if (data) {
+      const accessVerify =
+        crypto.randomBytes(16).toString("hex") +
+        Math.random() +
+        new Date().getTime();
+      const time = new Date();
+      await User.update(
+        {
+          email: newEmail,
+          isVerified: false,
+          verifyToken: accessVerify,
+          verifyTokenCreatedAt: time,
+        },
+        { where: { email: data.email } },
+        { transaction: t }
+      );
+
+      const link = `${process.env.BASEPATH_FE_REACT}/api/auth/verify/${accessVerify}`;
+
+      const mailing = { recipient_email: newEmail, link };
+      Mailer.sendChangeEmailVerify(mailing);
+
+      await t.commit();
       res.json({
         ok: true,
         message: "change email successful and please log in again",
       });
     } else {
+      await t.rollback();
       res.status(400).json({
         ok: false,
         message: "current email not match",
@@ -108,7 +189,8 @@ const changeEmail = async (req, res) => {
     }
   } catch (error) {
     console.log(error);
-    res.status(400).json({
+    await t.rollback();
+    res.status(500).json({
       ok: false,
       message: error.message,
     });
@@ -116,31 +198,53 @@ const changeEmail = async (req, res) => {
 };
 
 const changePhone = async (req, res) => {
+  const t = await db.sequelize.transaction();
   try {
+    const { newPhone } = req.body;
     const data = await User.findOne({
       where: {
         username: req.user.username,
         email: req.user.email,
       },
     });
-    const { currentPhone, newPhone } = req.body;
 
-    if (data.phone === currentPhone) {
-      await User.update({ phone: newPhone }, { where: { phone: data.phone } });
-      res.json({
+    if (!data) {
+      return res.status(401).json({
+        ok: false,
+        message: "user not found",
+      });
+    }
+
+    const isPhoneExist = await User.findOne({ where: { phone: newPhone } });
+    if (isPhoneExist) {
+      return res.json({
+        ok: true,
+        message: "phone number already exist",
+      });
+    }
+
+    if (data) {
+      await User.update(
+        { phone: newPhone },
+        { where: { phone: data.phone } },
+        { transaction: t }
+      );
+      await t.commit();
+      return res.json({
         ok: true,
         message: "change phone successful",
       });
     } else {
-      res.status(400).json({
+      await t.rollback();
+      return res.status(400).json({
         ok: false,
         message: "current phone not match",
       });
     }
   } catch (error) {
     console.log(error);
-
-    res.status(400).json({
+    await t.rollback();
+    res.status(500).json({
       ok: false,
       message: error.message,
     });
@@ -148,6 +252,7 @@ const changePhone = async (req, res) => {
 };
 
 const singleUpload = async (req, res) => {
+  const t = await db.sequelize.transaction();
   try {
     const data = await User.findOne({
       where: {
@@ -158,6 +263,14 @@ const singleUpload = async (req, res) => {
         exclude: ["token", "password"],
       },
     });
+
+    if (!data) {
+      return res.status(401).json({
+        ok: false,
+        message: "user not found",
+      });
+    }
+
     const photoProfile = req.file.filename;
     let previousImage;
     if (data.imgProfile != null) {
@@ -166,7 +279,8 @@ const singleUpload = async (req, res) => {
 
     const dataUser = await data.update(
       { imgProfile: `photoProfile/${photoProfile}` },
-      { where: { imgProfile: data.id } }
+      { where: { imgProfile: data.id } },
+      { transaction: t }
     );
 
     if (req.file && previousImage != null) {
@@ -175,6 +289,7 @@ const singleUpload = async (req, res) => {
         fs.unlinkSync(`${__dirname}/../../Public/images/${previousImage}`);
       }
     }
+    await t.commit();
     res.json({
       ok: true,
       message: "single upload",
@@ -182,6 +297,151 @@ const singleUpload = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
+    await t.rollback();
+    res.status(500).json({
+      ok: false,
+      message: "fatal error",
+    });
+  }
+};
+
+const closeAccount = async (req, res) => {
+  const t = await db.sequelize.transaction();
+
+  const userId = req.user.userId;
+  const { username, password } = req.body;
+
+  try {
+    const user = await User.findOne({
+      where: {
+        id: userId,
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        ok: false,
+        message: "User not found",
+      });
+    }
+
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(400).json({
+        ok: false,
+        message: "Wrong password",
+      });
+    }
+
+    if (username !== user.username) {
+      return res.status(400).json({
+        ok: false,
+        message: "Wrong username",
+      });
+    }
+
+    const userBlogs = await Blog.findAll({
+      where: {
+        UserId: userId,
+      },
+    });
+
+    if (userBlogs.length > 0) {
+      for (const blog of userBlogs) {
+        const imageURL = blog.getDataValue("imageURL");
+        if (imageURL) {
+          const imageName = imageURL.split("/")[1];
+          fs.unlinkSync(`${__dirname}/../../Public/blogs/${imageName}`);
+        }
+      }
+
+      const destroyBlog = await Blog.destroy(
+        {
+          where: {
+            UserId: userId,
+          },
+        },
+        { transaction: t }
+      );
+      if (!destroyBlog) {
+        await t.rollback();
+        return res.status(400).json({
+          ok: false,
+          message: "destroy user's blog failed",
+        });
+      }
+    }
+
+    const userLikes = await Like.findAll({
+      where: {
+        UserId: userId,
+      },
+    });
+
+    if (userLikes.length > 0) {
+      for (const like of userLikes) {
+        const imageURL = like.getDataValue("imageURL");
+        if (imageURL) {
+          const imageName = imageURL.split("/")[1];
+          fs.unlinkSync(`${__dirname}/../../Public/blogs/${imageName}`);
+        }
+      }
+
+      const destroyLike = await Like.destroy(
+        {
+          where: {
+            UserId: userId,
+          },
+        },
+        { transaction: t }
+      );
+
+      if (!destroyLike) {
+        await t.rollback();
+        return res.status(400).json({
+          ok: false,
+          message: "destroy user's like failed",
+        });
+      }
+    }
+
+    const userResetPassword = await ResetPassword.findAll({
+      where: {
+        UserId: userId,
+      },
+    });
+
+    if (userResetPassword.length > 0) {
+      await ResetPassword.destroy(
+        {
+          where: {
+            UserId: userId,
+          },
+        },
+        { transaction: t }
+      );
+    }
+
+    await User.destroy(
+      {
+        where: {
+          id: userId,
+        },
+      },
+      { transaction: t }
+    );
+    await t.commit();
+    res.status(200).json({
+      ok: true,
+      message: "Account deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    await t.rollback();
+    res.status(500).json({
+      ok: false,
+      message: "Server error",
+    });
   }
 };
 
@@ -191,4 +451,5 @@ module.exports = {
   changeEmail,
   changePhone,
   singleUpload,
+  closeAccount,
 };

@@ -8,3 +8,12 @@ npx sequelize-cli db:seed:all -> buat merunning seeder
 npx sequelize-cli db:seed:undo -> undo seed terkini
 npx sequelize-cli db:seed:undo --seed name-of-seed-as-in-data -> undo specific seed
 npx sequelize-cli db:seed:undo:all -> undo semua seed
+npx sequelize-cli migration:create --name name_migrate -> nambah column
+
+
+aka:
+- response get profile repeating v
+- link email reset password karna pakai otp, linknya dibersihkan v
+- untuk change profile (selain password), data lamanya ngga perlu ditaro body 
+- ada bug di create blog return imageURL double v
+- delete data pastiin cek ownership datanya

@@ -3,16 +3,16 @@ const routerAuth = require("express").Router();
 const AuthController = require("../controller/auth");
 // middleware
 const Validation = require("../validation");
+const verifyToken = require("../middleware/verifyToken");
 
-routerAuth.get("/auth", AuthController.getUser);
-routerAuth.get("/auth/AllUsers", AuthController.getAllUsers);
+routerAuth.get("/auth", verifyToken, AuthController.getUser);
+
 routerAuth.post(
   "/auth",
   Validation.registerValidation,
   Validation.runValidation,
   AuthController.registerUsers
 );
-routerAuth.delete("/auth/:userId", AuthController.deleteUser);
 
 routerAuth.post(
   "/auth/login",
@@ -21,15 +21,24 @@ routerAuth.post(
   AuthController.login
 );
 
-// routerAuth.get("/auth/verify/:tokenId", AuthController.verifyUser);
 routerAuth.patch("/auth/verify/:tokenId", AuthController.verify);
 
-routerAuth.post("/auth/forgot-password", AuthController.forgotPassword);
+routerAuth.post(
+  "/auth/forgot-password",
+  Validation.emailValidation,
+  Validation.runValidation,
+  AuthController.forgotPassword
+);
 
-routerAuth.get("/auth/reset-password/:id/:token", AuthController.resetPassword);
+routerAuth.post(
+  "/auth/resend-verify",
+  Validation.emailValidation,
+  Validation.runValidation,
+  AuthController.resendTokenVerify
+);
+
 routerAuth.patch(
   "/auth/reset-password/:id/:token",
-  // AuthController.getResetPassword,
   AuthController.resetPassword
 );
 

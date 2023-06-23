@@ -9,13 +9,18 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
-      ResetPassword.belongsTo(models.User, { foreignKey: "UserId" });
+      ResetPassword.belongsTo(models.User, {
+        foreignKey: "UserId",
+        onDelete: "cascade",
+        hooks: true,
+      });
     }
   }
   ResetPassword.init(
     {
       UserId: DataTypes.INTEGER,
       otp: DataTypes.STRING,
+      otpCreatedAt: DataTypes.DATE,
     },
     {
       sequelize,

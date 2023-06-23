@@ -9,8 +9,16 @@ module.exports = (sequelize, DataTypes) => {
      */
 
     static associate(models) {
-      Like.belongsTo(models.User, { foreignKey: "UserId" });
-      Like.belongsTo(models.Blog, { foreignKey: "BlogId" });
+      Like.belongsTo(models.User, {
+        foreignKey: "UserId",
+        onDelete: "cascade",
+        hooks: true,
+      });
+      Like.belongsTo(models.Blog, {
+        foreignKey: "BlogId",
+        onDelete: "cascade",
+        hooks: true,
+      });
     }
   }
   Like.init(

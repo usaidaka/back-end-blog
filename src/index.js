@@ -8,6 +8,7 @@ const cors = require("cors");
 //middleware
 const logRequest = require("./middleware/log");
 const verifyToken = require("./middleware/verifyToken");
+const errorMiddleware = require("./middleware/errorHandle");
 
 // router
 const ProfileRouter = require("./routes/profile");
@@ -27,21 +28,9 @@ app.use("/api", ProfileRouter);
 app.use("/api", AuthRouter);
 app.use("/api", BlogRouter);
 
-// test token
-app.get("/isToken", verifyToken, (req, res) => {
-  try {
-    res.json({
-      ok: true,
-      message: "congrats, your token is valid",
-    });
-  } catch (error) {
-    console.log(error);
-    res.json({
-      ok: false,
-      message: "your token is not valid",
-    });
-  }
-});
+// middleware for error
+app.use(errorMiddleware.errorRouteNotFound);
+app.use(errorMiddleware.errorHandler);
 
 app.listen(PORT, () => {
   console.log(`listening on PORT : ${PORT}`);

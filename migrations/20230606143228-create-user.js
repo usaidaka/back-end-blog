@@ -2,8 +2,11 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    const currentDate = new Date();
-    const expiredDate = new Date(currentDate.getTime() + 30 * 60000);
+    const futureDate = new Date(new Date().getTime() + 30 * 60000);
+    const formattedDate = futureDate
+      .toISOString()
+      .replace("T", " ")
+      .slice(0, 19);
 
     await queryInterface.createTable("Users", {
       id: {
@@ -38,14 +41,14 @@ module.exports = {
       password: {
         type: Sequelize.STRING,
       },
-      token: {
-        type: Sequelize.STRING,
+      verifyToken: {
+        type: Sequelize.STRING(150),
+        defaultValue: null,
         unique: true,
       },
-      tokenExpired: {
-        allowNull: false,
-        type: Sequelize.STRING, // atau Sequelize.TEXT
-        defaultValue: Sequelize.literal(`'${expiredDate}'`),
+      verifyTokenCreatedAt: {
+        type: Sequelize.DATE,
+        defaultValue: null,
       },
       createdAt: {
         allowNull: false,

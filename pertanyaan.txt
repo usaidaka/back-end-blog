@@ -1,9 +1,0 @@
-bagaimana cara agar isVerified dan role berubah menjadi true saat sudah memverifikasi token?
-bagaimana cara menampilkan attribute imgProfile di data login?
-
-
-
-bagaimana membuat condition agar password lama (yg berupa hashing) === newPassword (yg di hashing) sementara hashing di newPassword berbeda2
-
-saya udah berhasil mengirim OTP melalui email . namun masih bingung cara agar kode otp tersebut bisa di akses oleh reset password ? 
-saya udah berhasil mengirim link ke email setelah user melakukan register. namun saat saya klik, link tersebut menampilkan error cannot GET. sementara saya ingin saat button tersebut di klik, akan patch sebuah attribute bernama isVerified menjadi true. bagaimana solusinya?

@@ -25,11 +25,12 @@ module.exports = (sequelize, DataTypes) => {
         get() {
           const rawValue = this.getDataValue("imageURL");
           if (rawValue) {
-            return `${process.env.BASEPATH}/photoBlogs/${rawValue}`;
+            return `${process.env.BASEPATH}/${rawValue}`;
           }
           return null;
         },
       },
+      videoURL: DataTypes.STRING,
       country: DataTypes.STRING,
       url: DataTypes.STRING,
       keywords: DataTypes.STRING,

@@ -9,7 +9,7 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
-      User.hasMany(models.Blog);
+      User.hasMany(models.Blog, { onDelete: "cascade", hooks: true });
     }
   }
   User.init(
@@ -46,10 +46,8 @@ module.exports = (sequelize, DataTypes) => {
         unique: true,
       },
       password: DataTypes.STRING,
-      token: {
-        type: DataTypes.STRING,
-        unique: true,
-      },
+      verifyToken: DataTypes.STRING,
+      verifyTokenCreatedAt: DataTypes.DATE,
     },
     {
       sequelize,
