@@ -1,5 +1,3 @@
-Welcome file
-Welcome file
 # # MiniBlog Backend API
 
 This repository contains a REST API for the MiniBlog application built using Express.js. The API allows users to create, read, update, and delete blog posts. also, this API allows user to like, unlike, change photo profile, register, login, and many more. 
