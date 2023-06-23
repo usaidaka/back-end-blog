@@ -1,3 +1,11 @@
+[![Contributors][contributors-shield]][contributors-url]
+[![Forks][forks-shield]][forks-url]
+[![Stargazers][stars-shield]][stars-url]
+[![Issues][issues-shield]][issues-url]
+[![MIT License][license-shield]][license-url]
+[![LinkedIn][linkedin-shield]][linkedin-url]
+
+
 # # MiniBlog Backend API
 
 This repository contains a REST API for the MiniBlog application built using Express.js. The API allows users to create, read, update, and delete blog posts. also, this API allows user to like, unlike, change photo profile, register, login, and many more. 
