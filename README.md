@@ -1,12 +1,18 @@
-<<<<<<< HEAD
-=======
-
-
->>>>>>> 49fb039907d239725f350f80cf7e544d914adc6f
 # # MiniBlog Backend API
 
 This repository contains a REST API for the MiniBlog application built using Express.js. The API allows users to create, read, update, and delete blog posts. also, this API allows user to like, unlike, change photo profile, register, login, and many more.
+[![Express Logo](https://i.cloudup.com/zfY6lL7eFa-3000x3000.png)](http://expressjs.com/)
 
+Fast, unopinionated, minimalist web framework for [Node.js](http://nodejs.org).
+<p>this API implemented ORM by using Sequelize and mySQL as database,</p> 
+<span align="left"><a href="https://sequelize.org"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFDuwpPiasM9ECrEuO5nPzbHUJTiApvE4cLypVdMycI9ap4aukVyG0foCyfiBix4cLVb0&usqp=CAU" width="100" alt="Sequelize logo" /></a>
+</span>
+<span>
+    <a href="https://mysql.com"><img src="https://alphacode.pythonanywhere.com/static/img_cover/kckr.png" width="200" alt="Sequelize logo" /></a>
+</span>
+
+
+  
 ## Prerequisites
 
 Before getting started, ensure that you have the following installed on your machine:
@@ -51,10 +57,45 @@ Before getting started, ensure that you have the following installed on your mac
 
 The following API main endpoints are available:
 
-    app.use("/api", ProfileRouter);
-    app.use("/api", AuthRouter);
+    ;app.use("/api", AuthRouter);
+    app.use("/api", ProfileRouter)
     app.use("/api", BlogRouter);
+### AuthRouter routes
+    routerAuth.get("/auth", verifyToken, AuthController.getUser); -> to get your own information
+    routerAuth.post("/auth", Validation.registerValidation, Validation.runValidation, AuthController.registerUsers); -> to register account
+    routerAuth.post("/auth/login", Validation.loginValidation, Validation.runValidation, AuthController.login); -> to login your registered account
+    routerAuth.patch("/auth/verify/:tokenId", AuthController.verify); -> to verify your account so you have an access to create blog, like blog, etc
+    routerAuth.post("/auth/forgot-password", Validation.emailValidation, Validation.runValidation, AuthController.forgotPassword ); -> to handle your forgot problem
+    routerAuth.post("/auth/resend-verify",  Validation.emailValidation, Validation.runValidation,AuthController.resendTokenVerify ); -> to resend verify token if your token missing or invalid or expired
+    routerAuth.patch("/auth/reset-password/:id/:token", AuthController.resetPassword); -> to renew your password if you forgot
 
+### ProfileRouter routes
+    routerProfile.post("/profile/single-uploaded",verifyToken,upload.single("file"), Validation.changeImageProfile, ProfileController.singleUpload); -> to upload your photo profile
+    routerProfile.patch("/profile/change-password",verifyToken, Validation.changePasswordValidation, Validation.runValidation, ProfileController.changePassword); -> to change your password
+    routerProfile.patch("/profile/change-username", verifyToken, Validation.changeUsernameValidation, Validation.runValidation, ProfileController.changeUsername); -> to change your username, you have to login again after change your username
+    routerProfile.patch("/profile/change-phone",verifyToken, Validation.changePhoneValidation, Validation.runValidation, ProfileController.changePhone); -> to change your phone number
+    routerProfile.patch("/profile/change-email",verifyToken, Validation.changeEmailValidation, Validation.runValidation, ProfileController.changeEmail); -> to change your email, you have to login again and verify your self again.
+    routerProfile.delete("/profile/close-account", verifyToken, Validation.deleteUser, Validation.runValidation, ProfileController.closeAccount); -> to close your account
+    
+### BlogRouter routes
+    routerBlog.post("/blog", verifyToken, isAccountVerified, upload.single("file"), Validation.createBlog,Validation.runValidation, BlogController.createBlog); -> to create blog
+    routerBlog.get("/blog", BlogController.getBlogs); -> to get all blog
+    routerBlog.get("/blog/user", verifyToken, BlogController.getUserBlogs); -> to get yout own blog
+    routerBlog.post("/blog/like", verifyToken, isAccountVerified, BlogController.like); -> to like someone's blog
+    routerBlog.get("/blog/allCategory", BlogController.allCategory); -> to get provided category list
+    routerBlog.get("/blog/pag-like", verifyToken, isAccountVerified, BlogController.pagLike); -> to get blog that you liked
+    routerBlog.get("/blog/pag-fav", BlogController.pagFav); -> to get top 10 blog
+    routerBlog.delete("/blog/remove/:id", verifyToken, isAccountVerified, BlogController.deleteBlog); -> to delete your blog
+    routerBlog.delete("/blog/pag-like/remove", verifyToken, isAccountVerified, BlogController.unLike); -> to unlike blog
+    routerBlog.patch("/blog/edit-blog/:id",verifyToken,isAccountVerified,upload.single("file"),Validation.createBlog,Validation.runValidation,
+    BlogController.editBlog); -> to edit your blog
+
+
+
+
+
+
+    
 you can check for more endpoints and more routes in source code above
 
 ## Acknowledgements
