@@ -521,7 +521,10 @@ const deleteBlog = async (req, res) => {
         message: "you cannot delete other user's blog ",
       });
     }
-
+    const realImageURL = dataBlog.getDataValue("imageURL").split("/")[1];
+    if (realImageURL) {
+      fs.unlinkSync(`${__dirname}/../../Public/blogs/${realImageURL}`);
+    }
     await t.commit();
     res.json({
       ok: true,

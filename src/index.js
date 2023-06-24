@@ -28,6 +28,18 @@ app.use("/api", ProfileRouter);
 app.use("/api", AuthRouter);
 app.use("/api", BlogRouter);
 
+app.use(
+  "/user",
+  (req, res, next) => {
+    console.log(`req url : ${req.originalUrl}`);
+    next();
+  },
+  (req, res, next) => {
+    console.log(`req type: ${req.method}`);
+    // next();
+  }
+);
+
 // middleware for error
 app.use(errorMiddleware.errorRouteNotFound);
 app.use(errorMiddleware.errorHandler);
