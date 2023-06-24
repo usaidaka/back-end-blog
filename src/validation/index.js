@@ -198,6 +198,36 @@ const createBlog = [
   }),
 ];
 
+const editBlog = [
+  body("data")
+    .notEmpty()
+    .withMessage("blog cannot be empty")
+    .custom((value) => {
+      try {
+        const jsonData = JSON.parse(value);
+        if (!jsonData.title) {
+          throw new Error("Title is required");
+        }
+        if (!jsonData.content) {
+          throw new Error("Content is required");
+        }
+        if (!jsonData.country) {
+          throw new Error("country is required");
+        }
+        if (!isURL(jsonData.videoURL)) {
+          throw new Error("invalid Video URL");
+        }
+        if (!isURL(jsonData.url)) {
+          throw new Error("invalid Reference URL");
+        }
+        return true;
+      } catch (error) {
+        throw new Error(`${error}`);
+      }
+    }),
+  body("file").optional(),
+];
+
 const emailValidation = [
   check("email", "email cannot be empty")
     .isEmail()
@@ -224,6 +254,7 @@ module.exports = {
   deleteUser,
   resetPassword,
   createBlog,
+  editBlog,
   emailValidation,
   changeImageProfile,
 };

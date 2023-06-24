@@ -50,8 +50,8 @@ routerBlog.patch(
   verifyToken,
   isAccountVerified,
   upload.single("file"),
-  // Validation.createBlog,
-  // Validation.runValidation,
+  Validation.editBlog,
+  Validation.runValidation,
   BlogController.editBlog
 );
 
