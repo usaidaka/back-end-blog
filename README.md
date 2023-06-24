@@ -91,14 +91,6 @@ The following API main endpoints are available:
     routerBlog.patch("/blog/edit-blog/:id",verifyToken,isAccountVerified,upload.single("file"),Validation.createBlog,Validation.runValidation,
     BlogController.editBlog); -> to edit your blog
 
-
-
-
-
-
-    
-you can check for more endpoints and more routes in source code above
-
 ## Acknowledgements
 
 - [Express.js](https://expressjs.com/) - Fast, unopinionated, minimalist web framework for Node.js.
