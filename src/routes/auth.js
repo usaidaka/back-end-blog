@@ -39,6 +39,9 @@ routerAuth.post(
 
 routerAuth.patch(
   "/auth/reset-password/:id/:token",
+  // verifyToken,
+  // Validation.resetPassword,
+  // Validation.runValidation,
   AuthController.resetPassword
 );
 

@@ -305,6 +305,7 @@ const resetPassword = async (req, res) => {
         id: id,
       },
     });
+    console.log(oldUser);
 
     const secret = process.env.ACCESS_TOKEN_SECRET + oldUser.password;
     const decodedToken = jwt.verify(token, secret, { expiresIn: "20m" });

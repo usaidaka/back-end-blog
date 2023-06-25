@@ -8,7 +8,7 @@ const db = require("../../models");
 const getBlogs = async (req, res) => {
   const pagination = {
     page: Number(req.query.page) || 1,
-    perPage: Number(req.query.perPage) || 5,
+    perPage: Number(req.query.perPage) || 10,
     search: req.query.search || undefined,
     category: req.query.category || "",
     sort: req.query.sort || "DESC",
@@ -48,7 +48,7 @@ const getBlogs = async (req, res) => {
         include: [
           [
             sequelize.literal(
-              `(SELECT COUNT(*) FROM Likes WHERE Likes.BlogId = Blog.id)`
+              `(SELECT COUNT(*) FROM Likes WHERE Likes.BlogId = Blog.id )`
             ),
             "total_like",
           ],
@@ -121,7 +121,41 @@ const getUserBlogs = async (req, res) => {
     }
 
     const data = await Blog.findAll({
-      where: { UserId: dataUser.id },
+      attributes: {
+        include: [
+          [
+            sequelize.literal(
+              `(SELECT COUNT(*) FROM Likes WHERE Likes.BlogId = Blog.id)`
+            ),
+            "total_like",
+          ],
+        ],
+      },
+      include: [
+        { model: AllCategory },
+        {
+          model: User,
+          attributes: {
+            exclude: [
+              "createdAt",
+              "updatedAt",
+              "password",
+              "phone",
+              "role",
+              "isVerified",
+              "verifyToken",
+              "verifyTokenCreatedAt",
+            ],
+          },
+        },
+        {
+          model: Like,
+          attributes: [],
+        },
+      ],
+      where: {
+        UserId: dataUser.id,
+      },
     });
 
     if (!data) {
@@ -178,7 +212,6 @@ const createBlog = async (req, res) => {
         message: "choose category from 1 - 6",
       });
     }
-
     const result = await Blog.create(
       {
         title: data.title,
@@ -411,9 +444,11 @@ const unLike = async (req, res) => {
       });
     }
 
+    console.log(user);
     await Like.destroy(
       {
         where: {
+          UserId: user.id,
           BlogId: BlogId,
         },
       },
@@ -555,7 +590,7 @@ const editBlog = async (req, res) => {
 
     if (!getBlog) {
       return res.status(400).json({
-        message: "blog not found",
+        message: "blog not found and you cannot edit other user's blog",
       });
     }
 
